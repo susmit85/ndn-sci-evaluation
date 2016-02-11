@@ -84,10 +84,12 @@ function highlyConcurrentRequests(names, callback){
   /** @type {Object<string, Number>} */
   var timings = {};
 
+  var start = process.hrtime(); //Total time
+
   async.eachLimit(names, //Data
-      process.env.npm_package_config_max_parallel_requests | 50, //psuedo threads
+      process.env.npm_package_config_max_parallel_requests || 50, //psuedo threads
       function(name, callback){ //task
-        var time = process.hrtime();
+        var time = process.hrtime(); //Per request time
         request(name,
             function(interest, data){ //Success
               var diff = process.hrtime(time);
@@ -104,7 +106,8 @@ function highlyConcurrentRequests(names, callback){
         if (err){
           console.error(err);
         } else {
-          callback(timings);
+          var total = process.hrtime(start);
+          callback({names:timings, totalTime: total[0] * 1e9 + total[1]});
         }
       }
   );
