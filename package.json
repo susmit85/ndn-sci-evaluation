@@ -8,13 +8,16 @@
 		"async": "^1.5.2"
 	},
 	"config": {
-		"timeout": 10000,
+		"timeout": 5000,
 		"prefix": "/cmip5",
 		"address": "atmos-den.es.net",
-		"port": 80,
-		"max_requests": 5000,
-		"max_parallel_requests": 10,
+		"port": 6363,
+		"max_requests": 10000,
+		"max_parallel_requests": 100,
 		"log": "output.log"
+	},
+	"scripts": {
+		"start": "node benchmark.js"
 	}
 }
 

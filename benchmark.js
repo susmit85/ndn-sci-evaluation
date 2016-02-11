@@ -19,32 +19,35 @@
 "use strict";
 var ndn = require("ndn-js");
 var fs = require("fs");
+var os = require('os');
 var async = require('async');
 
+var face = null;
+
+ndn.LOG = 3;
 
 function request(name, success, failure){
 
   var interest = new ndn.Interest(name);
-  interest.setInterestLifetimeMilliseconds(process.env.npm_package_config_timeout);
+  interest.setInterestLifetimeMilliseconds(process.env.npm_package_config_timeout || 10000);
   interest.setMustBeFresh(true);
 
   face.expressInterest(interest, success, failure);
-
 }
 
 function getValidNames(callback){
 
   var dataList = [];
 
-  const prefix = new ndn.Name(process.env.npm_package_config_prefix + '/catalog/query');
+  const prefix = new ndn.Name((process.env.npm_package_config_prefix || '/cmip5') + '/query');
 
-  var name = new ndn.Name(prefix);
+  let name = new ndn.Name(prefix);
   name.append(JSON.stringify({'??': '/'}));
 
   request(name, function(interest, data){
 
-    var name = interest.getName();
-    var piece = -1;
+    var name = data.getName().getPrefix(-1);
+    var piece = 0;
     const getPiece = function(interest, data) {
 
       if (data){
@@ -56,19 +59,21 @@ function getValidNames(callback){
         }
       }
 
-      if (dataList.length < process.env.npm_package_config_max_requests){
+      if (dataList.length < (process.env.npm_package_config_max_requests || 1000)){
         let pieceName = new ndn.Name(name).appendSegment(piece++);
-        request(pieceName, getPiece, function(){
-          throw new Error("Connection timed out while retrieving valid names. Consider extending the timeout in the config or environment"); 
+        request(pieceName, getPiece, function(interest){
+          console.error("Failed to get", interest.getName().toUri());
+          throw new Error("Connection timed out while retrieving valid names. Consider extending the timeout in the config or environment");
         });
       } else {
         callback(dataList);
       }
     }
 
-
+    getPiece();
 
   }, function(interest) {
+    console.error("Failed to get", interest.getName().toUri());
     throw new Error("Failed to get valid names for benchmark!");
   });
 
@@ -80,10 +85,10 @@ function highlyConcurrentRequests(names, callback){
   var timings = {};
 
   async.eachLimit(names, //Data
-      process.env.npm_package_config_max_parallel_requests, //psuedo threads
+      process.env.npm_package_config_max_parallel_requests | 50, //psuedo threads
       function(name, callback){ //task
         var time = process.hrtime();
-        request(name, 
+        request(name,
             function(interest, data){ //Success
               var diff = process.hrtime(time);
               timings[name] = diff[0] * 1e9 + diff[1];
@@ -107,18 +112,38 @@ function highlyConcurrentRequests(names, callback){
 }
 
 function main(pipeline){
-  var face = new ndn.Face({host: process.env.npm_package_config_address,
-    port: process.env.npm_package_config_port});
+
+  console.log("Setting up");
+
+  var timeout = setTimeout(function(){
+    console.error("Face never connected.");
+    face.close();
+    process.exit(1);
+  }, 10000);
+
+  face = new ndn.Face({
+    host: process.env.npm_package_config_address|| "atmos-den.es.net",
+    port: process.env.npm_package_config_port || 6363,
+    onopen: function(){
+      console.log("Connection open.");	
+      clearTimeout(timeout);
+    },
+    onclose: function(){
+      console.log("Connection closed!");
+    }
+  });	
 
   console.log("Stage 1: Discovering valid data names");
   getValidNames(function(names){
     console.log("Stage 2: Highly concurrent requests benchmark");
     highlyConcurrentRequests(names, handleResults);
   });
-
+  
 };
 
 function handleResults(results){
+
+  face.close();
 
   console.log("Stage 3: Writing to log file");
 
@@ -133,7 +158,7 @@ function handleResults(results){
   };
 
   fs.writeFile(
-      process.env.npm_package_config_log, //filename
+      process.env.npm_package_config_log || 'output.log', //filename
       JSON.stringify(log), //data
       {encoding: 'ascii'}, //options
       function(err){ //callback

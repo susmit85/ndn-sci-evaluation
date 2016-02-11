@@ -3,7 +3,7 @@ NDN-Sci-Benchmark
 
 Usage:
 ------
-Simply run node benchmark.js
+Simply run `npm start` in this directory.
 
 To configure the settings, either modify the package.json config section or by using npm config:
 
