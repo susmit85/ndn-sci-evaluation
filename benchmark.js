@@ -27,7 +27,7 @@ var face = null;
 function request(name, success, failure){
 
   var interest = new ndn.Interest(name);
-  interest.setInterestLifetimeMilliseconds(process.env.npm_package_config_timeout || 10000);
+  interest.setInterestLifetimeMilliseconds(process.env.npm_package_config_timeout || 5000);
   interest.setMustBeFresh(true);
 
   face.expressInterest(interest, success, failure);
@@ -40,10 +40,12 @@ const autoComplete = (function(){
   return function(path, callback){
 
     const name = new ndn.Name(prefix);
-    path = path.replace(/\/{2}/g, '/');
-    name.append(JSON.stringify({'?':path}));
 
-    console.log(path);
+    //Path corrections.
+    path = path.replace(/\/{2}/g, '/');
+    if (!path.endsWith('/')) path += '/';
+
+    name.append(JSON.stringify({'?':path}));
 
     var piece = 1; //If we need it, start at one.
 
@@ -56,14 +58,20 @@ const autoComplete = (function(){
         next = next.concat(content.next);
 
         if (content.resultCount !== content.viewEnd){
-          get(new ndn.Name(name).appendSquenceNumber(piece++));
+          let n2 = new ndn.Name(name);
+          n2.appendSegment(piece++);
+          console.log("Getting:", n2.toUri());
+          console.log(data.getName().toUri());
+          console.log(content)
+          get(n2);
         } else {
           callback(next, content.lastComponent === true);
         }
 
       },
       function(interest){
-        throw new Error("Failed to retrieve:", interest.getName().toUri());
+        console.error("Failed to retrieve:", interest.getName().toUri(), path);
+        throw new Error("Failed to finish autocomplete.");
       });
 
     };
@@ -164,12 +172,14 @@ function asyncNameDiscovery(callback){
 
   const getPaths = function(root){
 
-    active++;
+    ++active;
 
     const start = process.hrtime();
 
     autoComplete(root, function(next, lastElement){
-      active--;
+      --active;
+
+      console.log(active);
 
       const end = process.hrtime(start);
       const time = end[0] * 1e9 + end[1];
@@ -180,6 +190,7 @@ function asyncNameDiscovery(callback){
           getPaths(root + '/' + name);
         });
       } else if (active === 0){
+        console.log("Checkpoint 1");
         callback(names);
       }
 
