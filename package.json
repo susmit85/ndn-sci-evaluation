@@ -8,12 +8,12 @@
 		"async": "^1.5.2"
 	},
 	"config": {
-		"timeout": 5000,
+		"timeout": 100000,
 		"prefix": "/cmip5",
 		"address": "atmos-den.es.net",
 		"port": 6363,
 		"max_requests": 10000,
-		"max_parallel_requests": 100,
+		"max_parallel_requests": 10000,
 		"log": "output.log"
 	},
 	"scripts": {

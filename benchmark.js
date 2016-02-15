@@ -17,14 +17,12 @@
  */
 
 "use strict";
-var ndn = require("ndn-js");
-var fs = require("fs");
-var os = require('os');
-var async = require('async');
+const ndn = require("ndn-js");
+const fs = require("fs");
+const os = require('os');
+const async = require('async');
 
 var face = null;
-
-ndn.LOG = 3;
 
 function request(name, success, failure){
 
@@ -34,6 +32,48 @@ function request(name, success, failure){
 
   face.expressInterest(interest, success, failure);
 }
+
+const autoComplete = (function(){
+
+  const prefix = new ndn.Name((process.env.npm_package_config_prefix || '/cmip5') + '/query');
+
+  return function(path, callback){
+
+    const name = new ndn.Name(prefix);
+    path = path.replace(/\/{2}/g, '/');
+    name.append(JSON.stringify({'?':path}));
+
+    console.log(path);
+
+    var piece = 1; //If we need it, start at one.
+
+    var next = [];
+
+    const get = function(name){
+
+      request(name, function(interest, data){
+        var content = JSON.parse(data.getContent().toString().replace(/[\n\0]/g, ''));
+        next = next.concat(content.next);
+
+        if (content.resultCount !== content.viewEnd){
+          get(new ndn.Name(name).appendSquenceNumber(piece++));
+        } else {
+          callback(next, content.lastComponent === true);
+        }
+
+      },
+      function(interest){
+        throw new Error("Failed to retrieve:", interest.getName().toUri());
+      });
+
+    };
+
+    get(new ndn.Name(name));
+
+
+  };
+
+})();
 
 function getValidNames(callback){
 
@@ -114,6 +154,43 @@ function highlyConcurrentRequests(names, callback){
 
 }
 
+/**
+ * Asynchronous name discovery using autocomplete.
+ */
+function asyncNameDiscovery(callback){
+
+  var names = {};
+  var active = 0;
+
+  const getPaths = function(root){
+
+    active++;
+
+    const start = process.hrtime();
+
+    autoComplete(root, function(next, lastElement){
+      active--;
+
+      const end = process.hrtime(start);
+      const time = end[0] * 1e9 + end[1];
+      names[root] = time;
+
+      if (!lastElement){
+        next.forEach(function(name){
+          getPaths(root + '/' + name);
+        });
+      } else if (active === 0){
+        callback(names);
+      }
+
+    });
+
+  }
+
+  getPaths('/');
+
+}
+
 function main(pipeline){
 
   console.log("Setting up");
@@ -128,35 +205,37 @@ function main(pipeline){
     host: process.env.npm_package_config_address|| "atmos-den.es.net",
     port: process.env.npm_package_config_port || 6363,
     onopen: function(){
-      console.log("Connection open.");	
+      console.log("Connection open.");
       clearTimeout(timeout);
     },
     onclose: function(){
       console.log("Connection closed!");
     }
-  });	
-
-  console.log("Stage 1: Discovering valid data names");
-  getValidNames(function(names){
-    console.log("Stage 2: Highly concurrent requests benchmark");
-    highlyConcurrentRequests(names, handleResults);
   });
-  
+
+  //console.log("Stage 1: Discovering valid data names");
+  //getValidNames(function(names){
+  console.log("Stage 1: Branching name discovery");
+  asyncNameDiscovery(handleResults);
+  //});
+
 };
 
 function handleResults(results){
 
   face.close();
 
-  console.log("Stage 3: Writing to log file");
+  console.log("Complete: Writing to log file");
 
   var log = {
-    arch: os.arch(),
-    cpus: os.cpus(),
-    platform: os.platform(),
-    release: os.release(),
-    load: os.loadavg(),
-    type: os.type(),
+    details: {
+      arch: os.arch(),
+      cpus: os.cpus(),
+      platform: os.platform(),
+      release: os.release(),
+      load: os.loadavg(),
+      type: os.type()
+    },
     data: results
   };
 

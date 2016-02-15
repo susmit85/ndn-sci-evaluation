@@ -5,6 +5,8 @@ Usage:
 ------
 Simply run `npm start` in this directory.
 
+NOTE: Running with `node benchmark.js` will run everything with its own defaults, not the ones set in the config or environment.
+
 To configure the settings, either modify the package.json config section or by using npm config:
 
 ```
