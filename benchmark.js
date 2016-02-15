@@ -27,7 +27,7 @@ var face = null;
 function request(name, success, failure){
 
   var interest = new ndn.Interest(name);
-  interest.setInterestLifetimeMilliseconds(process.env.npm_package_config_timeout || 5000);
+  interest.setInterestLifetimeMilliseconds(process.env.npm_package_config_timeout || 1000);
   interest.setMustBeFresh(true);
 
   face.expressInterest(interest, success, failure);
@@ -58,11 +58,8 @@ const autoComplete = (function(){
         next = next.concat(content.next);
 
         if (content.resultCount !== content.viewEnd){
-          let n2 = new ndn.Name(name);
+          let n2 = data.getName().getPrefix(-1);
           n2.appendSegment(piece++);
-          console.log("Getting:", n2.toUri());
-          console.log(data.getName().toUri());
-          console.log(content)
           get(n2);
         } else {
           callback(next, content.lastComponent === true);
@@ -83,84 +80,66 @@ const autoComplete = (function(){
 
 })();
 
-function getValidNames(callback){
+const randomPathQuery = (function(){
 
-  var dataList = [];
+  const shuffle = function(o){
+    for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+    return o;
+  }
 
-  const prefix = new ndn.Name((process.env.npm_package_config_prefix || '/cmip5') + '/query');
+  return function(names, callback){
 
-  let name = new ndn.Name(prefix);
-  name.append(JSON.stringify({'??': '/'}));
+    var dataList = {};
 
-  request(name, function(interest, data){
+    names.forEach(function(value){
+      dataList[value] = [];
+    });
 
-    var name = data.getName().getPrefix(-1);
-    var piece = 0;
-    const getPiece = function(interest, data) {
+    const prefix = new ndn.Name((process.env.npm_package_config_prefix || '/cmip5') + '/query');
 
-      if (data){
-        let content = JSON.parse(data.getContent().toString().replace(/[\n\0]/g,""));
-        dataList = dataList.concat(content.results);
+    async.times(process.env.npm_package_config_rounds || 5, function(n, next){
 
-        if (dataList.length === content.resultCount){
-          console.log("Max requests was not reached, not enough data. (", dataList.length, " names). Using available data instead.");
-        }
-      }
+      console.log("Iteration:", n);
 
-      if (dataList.length < (process.env.npm_package_config_max_requests || 1000)){
-        let pieceName = new ndn.Name(name).appendSegment(piece++);
-        request(pieceName, getPiece, function(interest){
-          console.error("Failed to get", interest.getName().toUri());
-          throw new Error("Connection timed out while retrieving valid names. Consider extending the timeout in the config or environment");
-        });
-      } else {
-        callback(dataList);
-      }
-    }
+      var list = shuffle(names.slice(0));
 
-    getPiece();
+      async.eachLimit(list,
+          process.env.npm_package_config_max_parallel_requests || 100,
+          function(ele, callback){
 
-  }, function(interest) {
-    console.error("Failed to get", interest.getName().toUri());
-    throw new Error("Failed to get valid names for benchmark!");
-  });
+            var name = new ndn.Name(prefix);
+            name.append(JSON.stringify({'??': ele}));
 
-}
+            var start = process.hrtime();
 
-function highlyConcurrentRequests(names, callback){
+            request(name, function(interest, data){
 
-  /** @type {Object<string, Number>} */
-  var timings = {};
+              var end = process.hrtime(start);
 
-  var start = process.hrtime(); //Total time
+              dataList[ele].push(end[0] * 1e9 + end[1]);
 
-  async.eachLimit(names, //Data
-      process.env.npm_package_config_max_parallel_requests || 50, //psuedo threads
-      function(name, callback){ //task
-        var time = process.hrtime(); //Per request time
-        request(name,
-            function(interest, data){ //Success
-              var diff = process.hrtime(time);
-              timings[name] = diff[0] * 1e9 + diff[1];
               callback();
-            },
-            function(interest){ //Timeout
-              timings[name] = null;
+
+            }, function(interest) {
+
+              dataList[ele].push(-1);
+
               callback();
-            }
+
+            });
+          },
+          function(){
+            next(); //Start the next iteration.
+          }
                );
-      },
-      function(err){ //when its all done
-        if (err){
-          console.error(err);
-        } else {
-          var total = process.hrtime(start);
-          callback({names:timings, totalTime: total[0] * 1e9 + total[1]});
-        }
-      }
-  );
 
-}
+    }, function(err){
+      callback(dataList);
+    });
+
+  }
+
+})();
 
 /**
  * Asynchronous name discovery using autocomplete.
@@ -178,8 +157,6 @@ function asyncNameDiscovery(callback){
 
     autoComplete(root, function(next, lastElement){
       --active;
-
-      console.log(active);
 
       const end = process.hrtime(start);
       const time = end[0] * 1e9 + end[1];
@@ -227,7 +204,19 @@ function main(pipeline){
   //console.log("Stage 1: Discovering valid data names");
   //getValidNames(function(names){
   console.log("Stage 1: Branching name discovery");
-  asyncNameDiscovery(handleResults);
+
+  var data = {};
+  asyncNameDiscovery(function(names){
+    data.names = names;
+    console.log("Stage 2: Random Path Query");
+    randomPathQuery(Object.keys(names), function(paths){
+
+      data.paths = paths;
+
+      handleResults(data);
+
+    });
+  });
   //});
 
 };
