@@ -14,7 +14,8 @@
 		"port": 6363,
 		"rounts": 5,
 		"max_parallel_requests": 1000,
-		"log": "output.log"
+		"log": "output.log",
+		"pretty_space": "\t"
 	},
 	"scripts": {
 		"start": "node benchmark.js"

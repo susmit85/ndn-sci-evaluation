@@ -41,10 +41,6 @@ const autoComplete = (function(){
 
     const name = new ndn.Name(prefix);
 
-    //Path corrections.
-    path = path.replace(/\/{2}/g, '/');
-    if (!path.endsWith('/')) path += '/';
-
     name.append(JSON.stringify({'?':path}));
 
     var piece = 1; //If we need it, start at one.
@@ -67,7 +63,7 @@ const autoComplete = (function(){
 
       },
       function(interest){
-        console.error("Failed to retrieve:", interest.getName().toUri(), path);
+        console.error("Failed to retrieve:", interest.getName().toUri(), path, piece);
         throw new Error("Failed to finish autocomplete.");
       });
 
@@ -155,6 +151,10 @@ function asyncNameDiscovery(callback){
 
     const start = process.hrtime();
 
+    //Path corrections.
+    root = root.replace(/\/{2}/g, '/');
+    if (!root.endsWith('/')) root += '/';
+
     autoComplete(root, function(next, lastElement){
       --active;
 
@@ -241,7 +241,7 @@ function handleResults(results){
 
   fs.writeFile(
       process.env.npm_package_config_log || 'output.log', //filename
-      JSON.stringify(log), //data
+      JSON.stringify(log, null, process.env.npm_package_config_pretty_space || null), //data
       {encoding: 'ascii'}, //options
       function(err){ //callback
         if (err){
