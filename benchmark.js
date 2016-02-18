@@ -71,7 +71,6 @@ const autoComplete = (function(){
 
     get(new ndn.Name(name));
 
-
   };
 
 })();
@@ -85,7 +84,7 @@ const randomPathQuery = (function(){
 
   return function(names, callback){
 
-    var dataList = {};
+    var interations = [];
 
     names.forEach(function(value){
       dataList[value] = [];
@@ -93,7 +92,12 @@ const randomPathQuery = (function(){
 
     const prefix = new ndn.Name((process.env.npm_package_config_prefix || '/cmip5') + '/query');
 
+    const begin = process.hrtime();
+
     async.times(process.env.npm_package_config_rounds || 5, function(n, next){
+
+      var dataList = [];
+      iterations.push(dataList);
 
       console.log("Iteration:", n);
 
@@ -111,8 +115,13 @@ const randomPathQuery = (function(){
             request(name, function(interest, data){
 
               var end = process.hrtime(start);
+              var total = process.hrtime(begin);
 
-              dataList[ele].push(end[0] * 1e9 + end[1]);
+              dataList.push([
+                end[0] * 1e9 + end[1], //time
+                toal[0] * 1e9 + total[1], //total time
+                ele //name
+              ]);
 
               callback();
 
@@ -130,7 +139,7 @@ const randomPathQuery = (function(){
                );
 
     }, function(err){
-      callback(dataList);
+      callback(iterations);
     });
 
   }
@@ -144,6 +153,7 @@ function asyncNameDiscovery(callback){
 
   var names = {};
   var active = 0;
+  var begin = process.hrtime();
 
   const getPaths = function(root){
 
@@ -160,7 +170,9 @@ function asyncNameDiscovery(callback){
 
       const end = process.hrtime(start);
       const time = end[0] * 1e9 + end[1];
-      names[root] = time;
+      const total = process.hrtime(begin);
+      const time2 = total[0] * 1e9 + total[1];
+      names[root] = [time, time2, active];
 
       if (!lastElement){
         next.forEach(function(name){
