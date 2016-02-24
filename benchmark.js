@@ -27,7 +27,7 @@ var face = null;
 function request(name, success, failure){
 
   var interest = new ndn.Interest(name);
-  interest.setInterestLifetimeMilliseconds(process.env.npm_package_config_timeout || 1000);
+  interest.setInterestLifetimeMilliseconds(Number(process.env.npm_package_config_timeout) || 1000);
   interest.setMustBeFresh(true);
 
   face.expressInterest(interest, success, failure);
@@ -63,8 +63,9 @@ const autoComplete = (function(){
 
       },
       function(interest){
-        console.error("Failed to retrieve:", interest.getName().toUri(), path, piece);
-        throw new Error("Failed to finish autocomplete.");
+        console.error("Autocomplete timeout: ", interest.getName().toUri(), path, piece - 1);
+        //throw new Error("Failed to finish autocomplete.");
+        //We skip the name instead but log it to the output.
       });
 
     };
@@ -77,6 +78,7 @@ const autoComplete = (function(){
 
 const randomPathQuery = (function(){
 
+  //Borrowed from stack exchange! (Not our code)
   const shuffle = function(o){
     for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
     return o;
@@ -90,17 +92,16 @@ const randomPathQuery = (function(){
 
     const begin = process.hrtime();
 
-    async.times(process.env.npm_package_config_rounds || 5, function(n, next){
-
+    const iterate = function(round){
       var dataList = [];
       iterations.push(dataList);
 
-      console.log("Iteration:", n);
+      console.log("Round:", round);
 
       var list = shuffle(names.slice(0));
 
       async.eachLimit(list,
-          process.env.npm_package_config_max_parallel_requests || 100,
+          Number(process.env.npm_package_config_max_parallel_requests) || 100,
           function(ele, callback){
 
             var name = new ndn.Name(prefix);
@@ -114,9 +115,9 @@ const randomPathQuery = (function(){
               var total = process.hrtime(begin);
 
               dataList.push([
-                end[0] * 1e9 + end[1], //time
-                total[0] * 1e9 + total[1], //total time
-                ele //name
+                  total[0] * 1e9 + total[1], //total time
+                  end[0] * 1e9 + end[1], //time
+                  ele //name
               ]);
 
               callback();
@@ -130,13 +131,17 @@ const randomPathQuery = (function(){
             });
           },
           function(){
-            next(); //Start the next iteration.
+            if (round <= 1){
+                    callback(iterations);
+            } else {
+              iterate(--round);
+            }
           }
-               );
+      );
 
-    }, function(err){
-      callback(iterations);
-    });
+    }
+
+    iterate(Number(process.env.npm_package_config_rounds) || 1);
 
   }
 
@@ -147,7 +152,7 @@ const randomPathQuery = (function(){
  */
 function asyncNameDiscovery(callback){
 
-  var names = {};
+  var names = [];
   var active = 0;
   var begin = process.hrtime();
 
@@ -168,14 +173,13 @@ function asyncNameDiscovery(callback){
       const time = end[0] * 1e9 + end[1];
       const total = process.hrtime(begin);
       const time2 = total[0] * 1e9 + total[1];
-      names[root] = [time, time2, active];
+      names.push([time2, time, active, root]);
 
       if (!lastElement){
         next.forEach(function(name){
           getPaths(root + '/' + name);
         });
       } else if (active === 0){
-        console.log("Checkpoint 1");
         callback(names);
       }
 
@@ -199,7 +203,7 @@ function main(pipeline){
 
   face = new ndn.Face({
     host: process.env.npm_package_config_address|| "atmos-den.es.net",
-    port: process.env.npm_package_config_port || 6363,
+    port: Number(process.env.npm_package_config_port) || 6363,
     onopen: function(){
       console.log("Connection open.");
       clearTimeout(timeout);
@@ -209,15 +213,15 @@ function main(pipeline){
     }
   });
 
-  //console.log("Stage 1: Discovering valid data names");
-  //getValidNames(function(names){
   console.log("Stage 1: Branching name discovery");
 
   var data = {};
   asyncNameDiscovery(function(names){
     data.names = names;
     console.log("Stage 2: Random Path Query");
-    randomPathQuery(Object.keys(names), function(paths){
+    randomPathQuery(names.map(function(element){
+        return element[3];
+      }), function(paths){
 
       data.paths = paths;
 
@@ -225,7 +229,6 @@ function main(pipeline){
 
     });
   });
-  //});
 
 };
 
@@ -258,15 +261,11 @@ function handleResults(results){
           console.log("Done!");
         }
       }
-        );
+  );
 }
 
 
 if (require.main === module) {
   main();
-} else {
-  module.exports = {
-    recursiveAutoComplete: recursiveAutoComplete
-  };
 }
 
