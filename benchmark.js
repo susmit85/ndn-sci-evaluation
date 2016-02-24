@@ -84,11 +84,7 @@ const randomPathQuery = (function(){
 
   return function(names, callback){
 
-    var interations = [];
-
-    names.forEach(function(value){
-      dataList[value] = [];
-    });
+    var iterations = [];
 
     const prefix = new ndn.Name((process.env.npm_package_config_prefix || '/cmip5') + '/query');
 
@@ -119,7 +115,7 @@ const randomPathQuery = (function(){
 
               dataList.push([
                 end[0] * 1e9 + end[1], //time
-                toal[0] * 1e9 + total[1], //total time
+                total[0] * 1e9 + total[1], //total time
                 ele //name
               ]);
 
@@ -127,7 +123,7 @@ const randomPathQuery = (function(){
 
             }, function(interest) {
 
-              dataList[ele].push(-1);
+              dataList.push([-1, -1, ele]);
 
               callback();
 
