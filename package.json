@@ -2,20 +2,20 @@
   "name": "ndn-sci-benchmark",
   "version": "0.0.1",
   "description": "A tool for benchmarking the ndn-sci tools",
-  "repository": "git@git.netsec.colostate.edu:ndn-sci-evaluation.git",
+  "repository": "https://github.com/susmit85/ndn-sci-evaluation",
   "dependencies": {
     "ndn-js": "^0.10.0",
     "async": "^1.5.2"
   },
   "config": {
-    "timeout": 5000,
+    "timeout": 10000,
     "prefix": "/cmip5",
     "address": "atmos-den.es.net",
     "port": 6363,
-    "rounts": 5,
+    "rounds": 15,
     "max_parallel_requests": 1000,
     "log": "output.log",
-    "pretty_space": "\t"
+    "pretty_space": ""
   },
   "scripts": {
     "start": "node benchmark.js"

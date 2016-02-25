@@ -4,15 +4,21 @@
 		<title>Ndn-Sci-Benchmark Chart</title>
 
 		<style>
-			html, body{
+			html, body, #chart {
 				width: 100%;
 				height: 100%;
-				margin: 0;
+				overflow: hidden;
+			}
+			body {
+				padding: 10px;
+				box-sizing: border-box;
 			}
 		</style>
 
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
+		<script src="https://www.gstatic.com/charts/loader.js"></script>
 		<script>
+
+			"use strict";
 
 			//skip the ? and get all the parameters.
 			var params = window.location.search.substring(1).split('&').reduce(function(data, element){
@@ -24,10 +30,12 @@
 			var p1 = new Promise(function(resolve, reject){
 				var ajax = new XMLHttpRequest();
 				ajax.onreadystatechange = function(){
-					if (ajax.readyState === 4 && ajax.status === 200){
-						resolve(JSON.parse(ajax.responseText));
-					} else {
-						reject();
+					if (ajax.readyState === 4){
+						if (ajax.status === 200){
+							resolve(JSON.parse(ajax.responseText));
+						} else {
+							reject();
+						}
 					}
 				}
 				ajax.open('GET', params['data']);
@@ -35,11 +43,19 @@
 			});
 
 			var p2 = new Promise(function(resolve, reject){
-				document.addEventListener('load', resolve);
+				window.addEventListener('load', function(){
+					console.log("Ready");
+					resolve();
+				});
 			});
 
-			var p3 = Promise.all([p1, p2])
-			.then(functcion(values){
+			var p3 = new Promise(function(resolve, reject){
+				google.charts.load('current', {packages: ['corechart']});
+				google.charts.setOnLoadCallback(resolve);
+			});
+
+			Promise.all([p1, p2, p3])
+			.then(function(values){
 				var data = values[0].data;
 
 				switch ((params['type'] || '').toLowerCase()){
@@ -56,11 +72,49 @@
 			});
 
 			function names(data){
-				//TODO
+
+				var table = new google.visualization.DataTable();
+				table.addColumn('number', 'Time Elapsed (ns)');
+				table.addColumn('number', 'Query time (ns)');
+				table.addColumn({type:'string', role:'tooltip'});
+
+				table.addRows(data.map(function(element){
+					return [element[0], element[1], "Name: " + element[3] + ", Active queries: " + element[2]];
+				}));
+
+				var options = {
+					title: 'Branching name queries',
+					hAxis: {title: 'Time Elapsed (ns)'},
+					vAxis: {title: 'Query time (ns)'}
+				};
+
+				var chart = new google.visualization.ScatterChart(document.getElementById('chart'));
+				chart.draw(table, options);
+
 			}
 
 			function paths(data){
-				//TODO
+				
+				var table = new google.visualization.DataTable();
+
+				table.addColumn('number', 'Time Elapsed (ns)');
+				table.addColumn('number', 'Query time (ns)');
+
+				for (let iteration = 0; iteration < data.length; ++iteration){
+					for (let pos = 0; pos < data[iteration].length; ++pos){
+						table.addRow(data[iteration][pos].slice(0,2)); 
+					}
+				}
+
+				var options = {
+					title: 'Random Path Query',
+					hAxis: {title: 'Time Elapsed (ns)'},
+					vAxis: {title: 'Query time (ns)'}
+				};
+
+				var chart = new google.visualization.ScatterChart(document.getElementById('chart'));
+				chart.draw(table, options);
+				
 			}
 
 		</script>
