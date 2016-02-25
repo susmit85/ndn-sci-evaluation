@@ -99,10 +99,11 @@
 
 				table.addColumn('number', 'Time Elapsed (ns)');
 				table.addColumn('number', 'Query time (ns)');
+				table.addColumn({type:'string', role:'tooltip'});
 
 				for (let iteration = 0; iteration < data.length; ++iteration){
 					for (let pos = 0; pos < data[iteration].length; ++pos){
-						table.addRow(data[iteration][pos].slice(0,2)); 
+						table.addRow(data[iteration][pos]); 
 					}
 				}
 
