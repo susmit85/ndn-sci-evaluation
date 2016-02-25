@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>NDN Science Benchmark tool</title>
+	<style>
+		html, body, iframe {
+			width: 100%;
+			height: 100%;
+			margin: 0;
+		}
+		iframe {
+			outline: none;
+			border: none;
+		}
+		section {
+			padding: 15px;
+			height: 100%;
+		}
+	</style>
+</head>
+<body>
+	<section>
+		<h1>Stage 1: Branching name query</h1>
+		<p>This query creates a series of requests that discover every available name in the catalog in an attempt
+		to hit every part of the database and prevent caching. If the catalog has been running then most things will
+		be cached anyways. The number of queries starts out at the root and then requests its children, so on and so forth.
+		Eventually the number of simultaneous queries will reach the width of the tree and the catalog will slow down as
+		seen in the chart below. Mouse over elements to see the number of active elements and the name that caused the delay.
+		</p>
+		<iframe src="chart.html?data=output_fresh.log&type=names"></iframe>
+	</section>
+	<section>
+		<h1>Stage 2: Random path query</h1>
+		<p>This query creates a huge but consistent burst of queries to random names. The query is requesting the entire
+		list of every name under the path provided which varies in size for every request but we only get the first packet.
+		The goal here is to stress the catalog with generation of packets and database queries. The catalog should generate
+		the full set of packets every time we query it unless it has underlying caching beyond ndn. Below, you can see
+		multiple iterations over the same set of names randomly sorted to help ensure the catalog has trouble keeping up.
+		</p>
+		<iframe src="chart.html?data=output_fresh.log"></iframe>
+	</section>
+</body>
+</html>
