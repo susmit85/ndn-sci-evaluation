@@ -75,7 +75,7 @@
 
 				var table = new google.visualization.DataTable();
 				table.addColumn('number', 'Time Elapsed (ns)');
-				table.addColumn('number', 'Query time (ns)');
+				table.addColumn('number', 'Query delay (ns)');
 				table.addColumn({type:'string', role:'tooltip'});
 
 				table.addRows(data.map(function(element){
@@ -85,7 +85,7 @@
 				var options = {
 					title: 'Branching name queries',
 					hAxis: {title: 'Time Elapsed (ns)'},
-					vAxis: {title: 'Query time (ns)'}
+					vAxis: {title: 'Query delay (ns)'}
 				};
 
 				var chart = new google.visualization.ScatterChart(document.getElementById('chart'));
@@ -98,7 +98,7 @@
 				var table = new google.visualization.DataTable();
 
 				table.addColumn('number', 'Time Elapsed (ns)');
-				table.addColumn('number', 'Query time (ns)');
+				table.addColumn('number', 'Query delay (ns)');
 
 				for (let iteration = 0; iteration < data.length; ++iteration){
 					for (let pos = 0; pos < data[iteration].length; ++pos){
@@ -109,7 +109,7 @@
 				var options = {
 					title: 'Random Path Query',
 					hAxis: {title: 'Time Elapsed (ns)'},
-					vAxis: {title: 'Query time (ns)'}
+					vAxis: {title: 'Query delay (ns)'}
 				};
 
 				var chart = new google.visualization.ScatterChart(document.getElementById('chart'));
