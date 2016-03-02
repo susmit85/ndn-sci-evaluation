@@ -50,7 +50,7 @@
 			});
 
 			var p3 = new Promise(function(resolve, reject){
-				google.charts.load('current', {packages: ['corechart']});
+				google.charts.load('44', {packages: ['corechart']});
 				google.charts.setOnLoadCallback(resolve);
 			});
 
@@ -74,18 +74,18 @@
 			function names(data){
 
 				var table = new google.visualization.DataTable();
-				table.addColumn('number', 'Time Elapsed (ns)');
-				table.addColumn('number', 'Query time (ns)');
+				table.addColumn('number', 'Time Elapsed (ms)');
+				table.addColumn('number', 'Query delay (ms)');
 				table.addColumn({type:'string', role:'tooltip'});
 
 				table.addRows(data.map(function(element){
-					return [element[0], element[1], "Name: " + element[3] + ", Active queries: " + element[2]];
+					return [element[0] / 1e6, element[1] / 1e6, "Name: " + element[3] + ", Active queries: " + element[2]];
 				}));
 
 				var options = {
 					title: 'Branching name queries',
-					hAxis: {title: 'Time Elapsed (ns)'},
-					vAxis: {title: 'Query time (ns)'}
+					hAxis: {title: 'Time Elapsed (ms)'},
+					vAxis: {title: 'Query delay (ms)'}
 				};
 
 				var chart = new google.visualization.ScatterChart(document.getElementById('chart'));
@@ -97,19 +97,19 @@
 				
 				var table = new google.visualization.DataTable();
 
-				table.addColumn('number', 'Time Elapsed (ns)');
-				table.addColumn('number', 'Query time (ns)');
+				table.addColumn('number', 'Time Elapsed (ms)');
+				table.addColumn('number', 'Query delay (ms)');
 
 				for (let iteration = 0; iteration < data.length; ++iteration){
-					for (let pos = 0; pos < data[iteration].length; ++pos){
-						table.addRow(data[iteration][pos].slice(0,2)); 
-					}
+					data[iteration].forEach(function(element){
+						table.addRow([element[0] / 1e6, element[1] / 1e6]);
+					});
 				}
 
 				var options = {
 					title: 'Random Path Query',
-					hAxis: {title: 'Time Elapsed (ns)'},
-					vAxis: {title: 'Query time (ns)'}
+					hAxis: {title: 'Time Elapsed (ms)'},
+					vAxis: {title: 'Query delay (ms)'}
 				};
 
 				var chart = new google.visualization.ScatterChart(document.getElementById('chart'));
