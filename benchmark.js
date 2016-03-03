@@ -66,6 +66,7 @@ const autoComplete = (function(){
         console.error("Autocomplete timeout: ", interest.getName().toUri(), path, piece - 1);
         //throw new Error("Failed to finish autocomplete.");
         //We skip the name instead but log it to the output.
+        callback();
       });
 
     };
@@ -90,58 +91,59 @@ const randomPathQuery = (function(){
 
     const prefix = new ndn.Name((process.env.npm_package_config_prefix || '/cmip5') + '/query');
 
-    const begin = process.hrtime();
+    const begin = process.hrtime(); //The beginning of task time.
 
     const iterate = function(round){
       var dataList = [];
-      iterations.push(dataList);
+      var maxParallel = Number(process.env.npm_package_config_max_parallel_requests || 100) * (round + 1) * 2;
+      iterations.push({
+        data: dataList,
+        maxParallel: maxParallel
+      });
 
       console.log("Round:", round);
 
       var list = shuffle(names.slice(0));
 
-      async.eachLimit(list,
-          Number(process.env.npm_package_config_max_parallel_requests) || 100,
-          function(ele, callback){
+      async.eachLimit(list, maxParallel, function(ele, callback){
 
-            var name = new ndn.Name(prefix);
-            name.append(JSON.stringify({'??': ele}));
+        var name = new ndn.Name(prefix);
+        name.append(JSON.stringify({'??': ele}));
 
-            var start = process.hrtime();
+        const startRequest = process.hrtime(begin); //Time since start of task to start of request
+        const start = process.hrtime(); //When the request started
 
-            request(name, function(interest, data){
+        request(name, function(interest, data){
 
-              var end = process.hrtime(start);
-              var total = process.hrtime(begin);
+          const end = process.hrtime(start);
 
-              dataList.push([
-                  total[0] * 1e9 + total[1], //total time
-                  end[0] * 1e9 + end[1], //time
-                  ele //name
-              ]);
+          dataList.push([
+              startRequest[0] * 1e9 + startRequest[1],
+              end[0] * 1e9 + end[1], //Query time
+              ele //name
+          ]);
 
-              callback();
+          callback();
 
-            }, function(interest) {
+        }, function(interest) {
 
-              dataList.push([-1, -1, ele]);
+          dataList.push([-1, -1, ele]);
 
-              callback();
+          callback();
 
-            });
-          },
-          function(){
-            if (round <= 1){
-                    callback(iterations);
-            } else {
-              iterate(--round);
-            }
-          }
-      );
+        });
+      },
+      function(){
+        if (round >= (Number(process.env.npm_package_config_rounds) || 1) ){
+          callback(iterations);
+        } else {
+          iterate(round + 1);
+        }
+      });
 
     }
 
-    iterate(Number(process.env.npm_package_config_rounds) || 1);
+    iterate(0);
 
   }
 
@@ -168,6 +170,11 @@ function asyncNameDiscovery(callback){
 
     autoComplete(root, function(next, lastElement){
       --active;
+
+      if (!next){
+        if (active === 0) callback(names); //If we timeout and no others are active, try moving forward.
+        return;
+      }
 
       const end = process.hrtime(start);
       const time = end[0] * 1e9 + end[1];

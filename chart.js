@@ -24,7 +24,6 @@ var p1 = new Promise(function(resolve, reject){
 
 var p2 = new Promise(function(resolve, reject){
   window.addEventListener('load', function(){
-    console.log("Ready");
     resolve();
   });
 });
@@ -39,7 +38,7 @@ Promise.all([p1, p2, p3])
     var data = values[0].data;
 
     switch ((params['type'] || '').toLowerCase()){
-      case "names": 
+      case "names":
         names(data.names);
         break;
       case "boxpaths":
@@ -81,17 +80,19 @@ function paths(data){
 
   table.addColumn('number', 'Time Elapsed (ms)');
   table.addColumn('number', 'Query delay (ms)');
+  table.addColumn({type:'string', role:'tooltip'});
 
   for (let iteration = 0; iteration < data.length; ++iteration){
-    data[iteration].forEach(function(element){
-      table.addRow([element[0] / 1e6, element[1] / 1e6]);
+    data[iteration].data.forEach(function(element){
+      table.addRow([element[0] / 1e6, element[1] / 1e6, "Name: " + element[2] + " Parallel Queries: " + data[iteration].maxParallel]);
     });
   }
 
   var options = {
     title: 'Random Path Query',
     hAxis: {title: 'Time Elapsed (ms)'},
-    vAxis: {title: 'Query delay (ms)'}
+    vAxis: {title: 'Query delay (ms)'},
+    explorer: { actions: ['dragToZoom', 'rightClickToReset']}
   };
 
   var chart = new google.visualization.ScatterChart(document.getElementById('chart'));
@@ -110,38 +111,45 @@ function average(data, subIndex){
 
 function boxPaths(data){
 
-  var table = google.visualization.arrayToDataTable(
-    data.map(function(iteration, index){
-      var d = iteration.reduce(function(prev, value, index, array){ //Remove time as a factor
-        if (index + 1 === array.length) return prev;
-        prev.push(Math.abs(array[index + 1][1] / 1e6 - value[1] / 1e6));
-        return prev;
-      }, []);
-      var avg = average(d); //Get the average.
-      var diffsq = d.map(function(value){
-        return Math.pow(value - avg, 2);
-      });
-      var avgDiffsq = average(diffsq);
-      var stdDev = Math.sqrt(avgDiffsq);
+  var stats = data.map(function(iteration, index){
+    var d = iteration.data.reduce(function(prev, value, index, array){ //Remove time as a factor
+      prev.push(value[1] / 1e6);
+      return prev;
+    }, []).sort(function(a, b){ return a - b; });
+    var avg = average(d); //Get the average.
+    var diffsq = d.map(function(value){
+      return Math.pow(value - avg, 2);
+    });
+    var avgDiffsq = average(diffsq);
+    var stdDev = Math.sqrt(avgDiffsq);
 
-      var min = Math.min.apply(null, d);
-      var max = Math.max.apply(null, d);
+    var min = Math.min.apply(null, d);
+    var max = Math.max.apply(null, d);
 
+    var median = 0;
+    if (d.length % 2 == 0){
+      let si = d.length / 2;
+      median = average([d[si - 1], d[si]]);
+    } else {
+      let si = Math.floor(d.length / 2);
+      median = d[si];
+    }
 
-      console.log("Iteration %i, avg %f, stdDev %f, min %f, max %f", index, avg, stdDev, min, max);
+    return [iteration.maxParallel, min, avg + stdDev, avg - stdDev, max, avg, median];
+  });
 
-      return ["Iteration: " + index, min, avg - stdDev, avg + stdDev, max];
+  stats.unshift(['Max parallel queries', 'Min/Max/StdDev', '', '', '', 'Avg', 'Median']);
 
-    }), true);
+  var table = google.visualization.arrayToDataTable(stats);
 
   var options = {
-    legend: 'none',
     title: 'Random Path Query Statistics',
-    hAxis: {title: 'Iteration'},
-    vAxis: {title: 'Query delay (ms)'}
+    hAxis: {title: 'Maximum Parallel Queries'},
+    vAxis: {title: 'Query RTT (ms)'},
+    series: {0: {type: "candlesticks"}, 1: {type: "line", pointSize: 10, lineWidth: 0}, 2: {type: "line", pointSize: 10, lineWidth: 0, color: 'black'}}
   };
 
-  var chart = new google.visualization.CandlestickChart(document.getElementById('chart'));
+  var chart = new google.visualization.ComboChart(document.getElementById('chart'));
   chart.draw(table, options);
 
 }
