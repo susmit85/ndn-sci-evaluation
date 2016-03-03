@@ -39,6 +39,12 @@
 		multiple iterations over the same set of names randomly sorted to help ensure the catalog has trouble keeping up.
 		</p>
 		<iframe src="chart.html?data=output.log"></iframe>
+		<p>The following does some simple statistics on the data by first filtering only the query time difference between
+		any two neighboring queries to find the average time it takes for a single query to be processed. First, we get the
+		absolute value of data[n] - data[n+1] and then run it through simple algorithms to find the min, max, avg, and stdDev.
+		The graph below, shows the min, max, avg - stdDev, and avg + stdDev. If you want the exact values, they have been printed
+		in console. (Chrome: <kbd>Control</kbd> + <kbd>Shift</kbd> + <kbd>J</kbd>.)
+		<iframe src="chart.html?data=output.log&type=boxPaths"></iframe>
 	</section>
 </body>
 </html>
