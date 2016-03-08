@@ -28,7 +28,7 @@
 		Eventually the number of simultaneous queries will reach the width of the tree and the catalog will slow down as
 		seen in the chart below. Mouse over elements to see the number of active elements and the name that caused the delay.
 		</p>
-		<iframe src="chart.html?data=output.log&type=names"></iframe>
+		<iframe src="chart.html?data=output.json&type=names"></iframe>
 	</section>
 	<section>
 		<h1>Stage 2: Random path query</h1>
@@ -38,13 +38,13 @@
 		the full set of packets every time we query it unless it has underlying caching beyond ndn. Below, you can see
 		multiple iterations over the same set of names randomly sorted to help ensure the catalog has trouble keeping up.
 		</p>
-		<iframe src="chart.html?data=output.log"></iframe>
+		<iframe src="chart.html?data=output.json"></iframe>
 		<p>The following does some simple statistics on the data by first filtering only the query time difference between
 		any two neighboring queries to find the average time it takes for a single query to be processed. First, we get the
 		absolute value of data[n] - data[n+1] and then run it through simple algorithms to find the min, max, avg, and stdDev.
 		The graph below, shows the min, max, avg - stdDev, and avg + stdDev. If you want the exact values, they have been printed
 		in console. (Chrome: <kbd>Control</kbd> + <kbd>Shift</kbd> + <kbd>J</kbd>.)
-		<iframe src="chart.html?data=output.log&type=boxPaths"></iframe>
+		<iframe src="chart.html?data=output.json&type=boxPaths"></iframe>
 	</section>
 </body>
 </html>

@@ -93,7 +93,7 @@ const randomPathQuery = (function(){
 
     const begin = process.hrtime(); //The beginning of task time.
 
-    const iterate = function(round){
+    const iterate = function(list, done, round){
       var dataList = [];
       var maxParallel = Number(process.env.npm_package_config_max_parallel_requests || 100) * (round + 1) * 2;
       iterations.push({
@@ -102,8 +102,6 @@ const randomPathQuery = (function(){
       });
 
       console.log("Round:", round);
-
-      var list = shuffle(names.slice(0));
 
       async.eachLimit(list, maxParallel, function(ele, callback){
 
@@ -132,18 +130,35 @@ const randomPathQuery = (function(){
           callback();
 
         });
-      },
-      function(){
-        if (round >= (Number(process.env.npm_package_config_rounds) || 1) ){
-          callback(iterations);
-        } else {
-          iterate(round + 1);
-        }
-      });
+      }, done);
 
     }
 
-    iterate(0);
+    var list = shuffle(names.slice(0));
+
+    if (process.env.npm_package_config_split_data == true){
+      let round = 0;
+      let size = list.length / Number(process.env.npm_pacakge_config_rounds);
+      let repeat = function(){
+        if (round >= (Number(process.env.npm_package_config_rounds) || 1) ){
+          callback(iterations);
+        } else {
+          iterate(list.slice(size * round, (size+1) * round), repeat, round);
+          round++;
+        }
+      }
+    } else {
+      let round = 0;
+      let repeat = function(){
+        if (round >= (Number(process.env.npm_package_config_rounds) || 1) ){
+          callback(iterations);
+        } else {
+          iterate(list, repeat, round);
+          round++;
+        }
+      }
+      repeat();
+    }
 
   }
 
