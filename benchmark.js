@@ -177,7 +177,8 @@ function asyncNameDiscovery(callback){
 
     ++active;
 
-    const start = process.hrtime();
+    const start = process.hrtime(); //Record high res time
+    const startns = process.hrtime(begin); //Time of query relative to begin
 
     //Path corrections.
     root = root.replace(/\/{2}/g, '/');
@@ -186,16 +187,16 @@ function asyncNameDiscovery(callback){
     autoComplete(root, function(next, lastElement){
       --active;
 
+      const end = process.hrtime(start); //Time relative to start of query
+      const rtt = end[0] * 1e9 + end[1]; //RTT
+
       if (!next){
+        names.push([startns, -1, active, root]); 
         if (active === 0) callback(names); //If we timeout and no others are active, try moving forward.
         return;
+      } else {
+        names.push([startns, rtt, active, root]);
       }
-
-      const end = process.hrtime(start);
-      const time = end[0] * 1e9 + end[1];
-      const total = process.hrtime(begin);
-      const time2 = total[0] * 1e9 + total[1];
-      names.push([time2, time, active, root]);
 
       if (!lastElement){
         next.forEach(function(name){
