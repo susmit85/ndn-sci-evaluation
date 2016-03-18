@@ -170,47 +170,78 @@ const randomPathQuery = (function(){
 function asyncNameDiscovery(callback){
 
   var names = [];
-  var active = 0;
   var begin = process.hrtime();
 
-  const getPaths = function(root){
-
-    ++active;
+  const getPaths = function(root, callback){
 
     const start = process.hrtime(); //Record high res time
-    const startns = process.hrtime(begin); //Time of query relative to begin
+    const startDiff = process.hrtime(begin); //Time of query relative to begin
+    const startns = startDiff[0] * 1e9 + startDiff[1];
 
     //Path corrections.
     root = root.replace(/\/{2}/g, '/');
     if (!root.endsWith('/')) root += '/';
 
     autoComplete(root, function(next, lastElement){
-      --active;
 
       const end = process.hrtime(start); //Time relative to start of query
       const rtt = end[0] * 1e9 + end[1]; //RTT
 
       if (!next){
-        names.push([startns, -1, active, root]); 
-        if (active === 0) callback(names); //If we timeout and no others are active, try moving forward.
-        return;
+        names.push([startns, -1, 0, root]);
+        return callback(); //No need to continue
       } else {
-        names.push([startns, rtt, active, root]);
+        names.push([startns, rtt, next.length, root]);
       }
 
       if (!lastElement){
-        next.forEach(function(name){
-          getPaths(root + '/' + name);
-        });
-      } else if (active === 0){
-        callback(names);
+        callback(null, next.map(function(item){
+          return root + item + '/';
+        }));
+      } else {
+        callback(); //Done.
       }
 
     });
 
   }
 
-  getPaths('/');
+  const query = function(err, vals){
+    if (err){
+      throw err;
+    }
+
+    if (!vals){
+      throw new Error('No results found!');
+    }
+
+    //console.log('debug', vals);
+
+    var next = vals.reduce(function(prev, current){ //Vals is an array of arrays, we want to flatten this.
+      if (current){
+        return prev.concat(current);
+      } else {
+        return prev;
+      }
+    }, []);
+
+    if (next.length > 0){
+      let parallel = Number(process.env.npm_package_config_max_parallel_autocomplete || 100);
+      if (parallel <= 0){
+        async.map(next, getPaths, query); //Run getPaths on every value in next, when done run this function.
+      } else {
+        async.mapLimit(next, parallel, getPaths, query); //Same as above except limited to some number of queries.
+      }
+    } else {
+      callback(names);
+    }
+
+  }
+
+  getPaths('/', function(err, next){
+    query(err, [next]); //Fix default return since we didn't use map.
+  });
+
 
 }
 
