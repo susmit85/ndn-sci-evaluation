@@ -1,0 +1,9 @@
+{
+  "name": "ndn-sci-db-benchmark",
+  "version": "0.0.1",
+  "description": "This is designed to directly query things in the database to see if the database is the slow part of the system.",
+  "dependencies": {
+    "async": "^2.0.0-rc.2",
+    "mysql": "^2.10.2"
+  }
+}
