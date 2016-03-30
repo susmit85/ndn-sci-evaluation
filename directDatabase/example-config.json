@@ -1,8 +1,16 @@
 {
   "mysql": {
+    "connectionLimit": 15,
     "host": "localhost",
     "user": "me",
     "password": "secret",
     "database": "my_db"
+  },
+  "autoCompleteSize": 200,
+  "pathCompleteSize": 200,
+  "parallel": 15,
+  "components": {
+    "min": 0,
+    "max": 9
   }
 }

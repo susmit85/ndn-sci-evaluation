@@ -6,9 +6,11 @@ const config = require('./config.json');
 const mysql = require('mysql');
 const zlib = require('zlib');
 const fs = require('fs');
+const async = require('async');
+const process = require('process');
 
 //Globals
-const connection = mysql.createConnection(config.mysql);
+const pool = mysql.createPool(config.mysql);
 const schema = ['activity', 'product', 'organization', 'model', 'experiment', 'frequency',
     'modeling_realm', 'variable_name', 'ensemble', 'time'];
 
@@ -29,14 +31,12 @@ function getRandomLengthNames(names, quantity){
 
   var list = new Set();
 
-  console.log(quantity, list.size);
-
   while (list.size < quantity){
 
     var name = names[getRandom(0, names.length - 1)];
     var variations = [];
 
-    for (let i = 0; i < 8; ++i){
+    for (let i = config.components.min; i < config.components.max; ++i){
       let variation = getLengthVariation(name, i);
       if (!list.has(variation)){
         variations.push(variation);
@@ -70,19 +70,122 @@ new Promise(function(resolve, reject){
 
 }).then(function(names){
 
-  console.log('# of names:', names.length);
   //Tests
+  var list;
 
-  //TODO Path queries
+  //Path queries
+  list = getRandomLengthNames(names, config.pathCompleteSize);
+  
+  const q = 'SELECT `name` FROM testdb.cmip5_all_no_metadata WHERE';
+  const slash = /^\/|\/$/g;
 
+  console.log("Starting path queries");
 
-  //Autocomplete queries
-  var list = getRandomLengthNames(names, config.autoCompleteSize);
+  async.mapLimit(list, config.parallel, function(item, callback){
 
-  console.log("List of names:", list);
+    console.log("Running on:", item);
+
+    var w = '';
+
+    var components = item.replace(slash, '').split(/\//);
+    components.forEach(function(value, index){
+      if (index > 0) w += ' AND';
+      w += ' `' + schema[index] + "` = '" + value + "'";
+    });
+
+    pool.getConnection(function(err, connection){
+
+      var qbegin = process.hrtime();
+
+      connection.query(q + w, function(err, rows){
+        if (err){
+          console.error(err);
+          connection.release();
+          return callback(err);
+        }
+
+        connection.release();
+
+        var time = process.hrtime(qbegin);
+
+        callback(null, [item, rows.length, time[0] * 1e9 + time[1]]);
+
+      });
+    });
+
+  }, function(err, results){
+
+    console.log("Finished with all path queries");
+
+    fs.writeFile('pathComplete.json', JSON.stringify(results), function(err){
+      if (err){
+        return console.error(err);
+      }
+
+      console.log("Wrote results to pathComplete.json");
+    });
+
+    //Autocomplete queries
+    list = getRandomLengthNames(names, config.autoCompleteSize);
+    
+    const q = 'SELECT DISTINCT $val FROM testdb.cmip5_all_no_metadata WHERE';
+
+    async.mapLimit(list, config.parallel, function(item, callback){
+
+      console.log("Running on:", item);
+
+      var w = '';
+
+      var components = item.replace(slash, '').split(/\//);
+      components.forEach(function(value, index){
+        if (index > 0) w += ' AND';
+        w += ' `' + schema[index] + "` = '" + value + "'";
+      });
+
+      pool.getConnection(function(err, connection){
+
+        var qbegin = process.hrtime();
+
+        connection.query(q.replace('$val', schema[components.length]) + w, function(err, rows){
+          if (err){
+            console.error(err);
+            connection.release();
+            return callback(err);
+          }
+
+          connection.release();
+
+          var time = process.hrtime(qbegin);
+
+          callback(null, [item, rows.length, time[0] * 1e9 + time[1]]);
+
+        });
+      });
+
+    }, function(err, results){
+
+      console.log("Finished with all auto complete queries.");
+
+      fs.writeFile('autoComplete.json', JSON.stringify(results), function(err){
+        if (err){
+          return console.error(err);
+        }
+        console.log("Wrote results to autoComplete.json");
+      });
+
+      pool.end(function(err){
+        if (err){
+          return console.error(err);
+        }
+        console.log("Done!");
+      });
+
+    });
+
+  });
+
 
 }).catch(function(e){
   console.error(e);
 });
-
 
