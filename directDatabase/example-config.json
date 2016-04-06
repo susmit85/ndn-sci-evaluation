@@ -6,6 +6,7 @@
     "password": "secret",
     "database": "my_db"
   },
+  "table": "cmip5_all_no_metadata",
   "autoCompleteSize": 200,
   "pathCompleteSize": 200,
   "parallel": 15,

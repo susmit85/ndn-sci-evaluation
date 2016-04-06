@@ -76,7 +76,7 @@ new Promise(function(resolve, reject){
   //Path queries
   list = getRandomLengthNames(names, config.pathCompleteSize);
   
-  const q = 'SELECT `name` FROM testdb.cmip5_all_no_metadata WHERE';
+  const q = 'SELECT `name` FROM testdb.' + config.table + ' WHERE';
   const slash = /^\/|\/$/g;
 
   console.log("Starting path queries");
@@ -95,40 +95,52 @@ new Promise(function(resolve, reject){
 
     pool.getConnection(function(err, connection){
 
-      var qbegin = process.hrtime();
+      if (err){
+        console.error(err);
+        return;
+      }
 
-      connection.query(q + w, function(err, rows){
-        if (err){
+      const qbegin = process.hrtime();
+      var first;
+      var count = 0;
+
+      connection.query(q + w)
+        .on('error', function(err){
           console.error(err);
           connection.release();
-          return callback(err);
-        }
+        }).on('fields', function(fields){
+          first = process.hrtime(qbegin);
+          //console.log(fields);
+        }).on('result', function(row){
+          count++;
+        }).on('end', function(){
+          connection.release();
+          var time = process.hrtime(qbegin);
+          callback(null, [item, count, first[0] * 1e9 + first[1], time[0] * 1e9 + time[1]]);
+        });
 
-        connection.release();
-
-        var time = process.hrtime(qbegin);
-
-        callback(null, [item, rows.length, time[0] * 1e9 + time[1]]);
-
-      });
     });
 
   }, function(err, results){
 
     console.log("Finished with all path queries");
 
-    fs.writeFile('pathComplete.json', JSON.stringify(results), function(err){
+    const csv = results.reduce(function(previous, next){
+      return previous + next.join(',') + "\n";
+    }, "Path query,results,database time,network time\n");
+
+    fs.writeFile('pathComplete.csv', csv, function(err){
       if (err){
         return console.error(err);
       }
 
-      console.log("Wrote results to pathComplete.json");
+      console.log("Wrote results to pathComplete.csv");
     });
 
     //Autocomplete queries
     list = getRandomLengthNames(names, config.autoCompleteSize);
     
-    const q = 'SELECT DISTINCT $val FROM testdb.cmip5_all_no_metadata WHERE';
+    const q = 'SELECT DISTINCT $val FROM testdb.' + config.table + ' WHERE';
 
     async.mapLimit(list, config.parallel, function(item, callback){
 
@@ -144,33 +156,43 @@ new Promise(function(resolve, reject){
 
       pool.getConnection(function(err, connection){
 
-        var qbegin = process.hrtime();
+        const qbegin = process.hrtime();
+        var first;
+        var count = 0;
 
-        connection.query(q.replace('$val', schema[components.length]) + w, function(err, rows){
-          if (err){
+        connection.query(q.replace('$val', schema[components.length]) + w)
+          .on('error', function(err){
             console.error(err);
             connection.release();
-            return callback(err);
-          }
+          }).on('fields', function(fields){
+            first = process.hrtime(qbegin);
+            //console.log(fields);
+          }).on('result', function(row){
+            count++;
+          }).on('end', function(){
 
-          connection.release();
+            connection.release();
 
-          var time = process.hrtime(qbegin);
+            var time = process.hrtime(qbegin);
 
-          callback(null, [item, rows.length, time[0] * 1e9 + time[1]]);
+            callback(null, [item, count, first[0] * 1e9 + first[1], time[0] * 1e9 + time[1]]);
 
-        });
+          });
       });
 
     }, function(err, results){
 
       console.log("Finished with all auto complete queries.");
 
-      fs.writeFile('autoComplete.json', JSON.stringify(results), function(err){
+      const csv = results.reduce(function(prev, next){
+        return prev + next.join(',') + "\n";
+      }, "name,results,database time,network time\n");
+
+      fs.writeFile('autoComplete.csv', csv, function(err){
         if (err){
           return console.error(err);
         }
-        console.log("Wrote results to autoComplete.json");
+        console.log("Wrote results to autoComplete.csv");
       });
 
       pool.end(function(err){
