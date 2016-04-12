@@ -21,13 +21,14 @@ const ndn = require("ndn-js");
 const fs = require("fs");
 const os = require('os');
 const async = require('async');
+const config = require('./config.json');
 
 var face = null;
 
 function request(name, success, failure){
 
   var interest = new ndn.Interest(name);
-  interest.setInterestLifetimeMilliseconds(Number(process.env.npm_package_config_timeout) || 1000);
+  interest.setInterestLifetimeMilliseconds(Number(config.timeout) || 1000);
   interest.setMustBeFresh(true);
 
   face.expressInterest(interest, success, failure);
@@ -35,7 +36,7 @@ function request(name, success, failure){
 
 const autoComplete = (function(){
 
-  const prefix = new ndn.Name((process.env.npm_package_config_prefix || '/cmip5') + '/query');
+  const prefix = new ndn.Name((config.prefix || '/cmip5') + '/query');
 
   return function(path, callback){
 
@@ -89,13 +90,13 @@ const randomPathQuery = (function(){
 
     var iterations = [];
 
-    const prefix = new ndn.Name((process.env.npm_package_config_prefix || '/cmip5') + '/query');
+    const prefix = new ndn.Name((config.prefix || '/cmip5') + '/query');
 
     const begin = process.hrtime(); //The beginning of task time.
 
     const iterate = function(list, done, round){
       var dataList = [];
-      var maxParallel = Number(process.env.npm_package_config_max_parallel_requests || 100) * (round + 1) * 2;
+      var maxParallel = Number(config.max_parallel_requests || 100) * (round + 1) * 2;
       iterations.push({
         data: dataList,
         maxParallel: maxParallel
@@ -138,9 +139,9 @@ const randomPathQuery = (function(){
 
     if (process.env.npm_package_config_split_data == true){
       let round = 0;
-      let size = list.length / Number(process.env.npm_pacakge_config_rounds);
+      let size = list.length / Number(config.rounds);
       let repeat = function(){
-        if (round >= (Number(process.env.npm_package_config_rounds) || 1) ){
+        if (round >= (Number(config.rounds) || 1) ){
           callback(iterations);
         } else {
           iterate(list.slice(size * round, (size+1) * round), repeat, round);
@@ -150,7 +151,7 @@ const randomPathQuery = (function(){
     } else {
       let round = 0;
       let repeat = function(){
-        if (round >= (Number(process.env.npm_package_config_rounds) || 1) ){
+        if (round >= (Number(config.rounds) || 1) ){
           callback(iterations);
         } else {
           iterate(list, repeat, round);
@@ -226,7 +227,7 @@ function asyncNameDiscovery(callback){
     }, []);
 
     if (next.length > 0){
-      let parallel = Number(process.env.npm_package_config_max_parallel_autocomplete || 100);
+      let parallel = Number(config.max_parallel_autocomplete || 100);
       if (parallel <= 0){
         async.map(next, getPaths, query); //Run getPaths on every value in next, when done run this function.
       } else {
@@ -256,8 +257,8 @@ function main(pipeline){
   }, 10000);
 
   face = new ndn.Face({
-    host: process.env.npm_package_config_address|| "atmos-den.es.net",
-    port: Number(process.env.npm_package_config_port) || 6363,
+    host: config.address|| "atmos-den.es.net",
+    port: Number(config.port) || 6363,
     onopen: function(){
       console.log("Connection open.");
       clearTimeout(timeout);
@@ -306,7 +307,7 @@ function handleResults(results){
 
   fs.writeFile(
       process.env.npm_package_config_log || 'output.log', //filename
-      JSON.stringify(log, null, process.env.npm_package_config_pretty_space || null), //data
+      JSON.stringify(log, null, config.pretty_space || null), //data
       {encoding: 'ascii'}, //options
       function(err){ //callback
         if (err){
