@@ -21,7 +21,47 @@ const ndn = require("ndn-js");
 const fs = require("fs");
 const os = require('os');
 const async = require('async');
+const zlib = require('zlib');
 const config = require('./config.json');
+
+function getRandom(min, max){
+    return Math.floor(Math.random() * (max - min)) + min;
+}
+
+/**
+ * This function gets a random length of components.
+ */
+function getLengthVariation(name, length){
+    var regex = new RegExp("(^\\/(?:[\\w\\-]+\\/){" + length + "})");
+    var match = regex.exec(name);
+    return match[0];
+}
+
+function getRandomLengthNames(names, quantity){
+
+    var list = new Set();
+
+    while (list.size < quantity){
+
+        var name = names[getRandom(0, names.length - 1)];
+        var variations = [];
+
+        for (let i = config.components.min; i < config.components.max; ++i){
+            let variation = getLengthVariation(name, i);
+            if (!list.has(variation)){
+                variations.push(variation);
+            }
+        }
+
+        if (variations.length > 0){
+            list.add(variations[getRandom(0, variations.length - 1)]);
+        }
+
+    }
+
+    return list;
+
+}
 
 var face = null;
 
@@ -48,18 +88,27 @@ const autoComplete = (function(){
 
     var next = [];
 
+    const begin = process.hrtime(); //When did the first packet go out?
+    var first;
+
     const get = function(name){
 
       request(name, function(interest, data){
         var content = JSON.parse(data.getContent().toString().replace(/[\n\0]/g, ''));
         next = next.concat(content.next);
-
+        
+        if (piece === 1){
+          first = process.hrtime(first); //First packet is back.
+        }
+        
         if (content.resultCount !== content.viewEnd){
           let n2 = data.getName().getPrefix(-1);
           n2.appendSegment(piece++);
           get(n2);
         } else {
-          callback(next, content.lastComponent === true);
+          const end = process.hrtime(begin);
+
+          callback(next, piece, first[0] * 1e9 + first[1], end[0] * 1e9 + end[1]); //data, packet count, first packet time, last packet time
         }
 
       },
@@ -78,173 +127,89 @@ const autoComplete = (function(){
 
 })();
 
-const randomPathQuery = (function(){
+const pathQuery = (function(){
 
-  //Borrowed from stack exchange! (Not our code)
-  const shuffle = function(o){
-    for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
-    return o;
-  }
+  const prefix = new ndn.Name((config.prefix || '/cmip5') + '/query');
 
-  return function(names, callback){
+  return function(path, callback){
 
-    var iterations = [];
+    const name = new ndn.Name(prefix);
 
-    const prefix = new ndn.Name((config.prefix || '/cmip5') + '/query');
+    name.append(JSON.stringify({'??': path}));
 
-    const begin = process.hrtime(); //The beginning of task time.
+    var piece = 1;
 
-    const iterate = function(list, done, round){
-      var dataList = [];
-      var maxParallel = Number(config.max_parallel_requests || 100) * (round + 1) * 2;
-      iterations.push({
-        data: dataList,
-        maxParallel: maxParallel
+    var results = [];
+
+    const begin = process.hrtime();
+    var first;
+
+    const get = function(name){
+
+      request(name, function(interest, data){
+        var content = JSON.parse(data.getContent().toString().replace(/[\n\0]/g, ''));
+        results = results.concat(content.results);
+        
+        if (piece === 1){
+          first = process.hrtime(begin);
+        }
+        
+        if (content.resultCount !== content.viewEnd && config.fullPathQuery === true){
+          let n2 = data.getName().getPrefix(-1);
+          n2.appendSegment(piece++);
+          get(n2);
+        } else {
+          const end = process.hrtime(begin);
+
+          callback(results, piece, first[0] * 1e9 + first[1], end[0] * 1e9 + end[1]);
+        }
+
+      },
+      function(interest){
+        console.error("Path Query timeout: ", interest.getName().toUri(), path, piece - 1);
+        callback();
       });
 
-      console.log("Round:", round);
+    };
 
-      async.eachLimit(list, maxParallel, function(ele, callback){
+    get(new ndn.Name(name));
 
-        var name = new ndn.Name(prefix);
-        name.append(JSON.stringify({'??': ele}));
-
-        const startRequest = process.hrtime(begin); //Time since start of task to start of request
-        const start = process.hrtime(); //When the request started
-
-        request(name, function(interest, data){
-
-          const end = process.hrtime(start);
-
-          dataList.push([
-              startRequest[0] * 1e9 + startRequest[1],
-              end[0] * 1e9 + end[1], //Query time
-              ele //name
-          ]);
-
-          callback();
-
-        }, function(interest) {
-
-          dataList.push([-1, -1, ele]);
-
-          callback();
-
-        });
-      }, done);
-
-    }
-
-    var list = shuffle(names.slice(0));
-
-    if (process.env.npm_package_config_split_data == true){
-      let round = 0;
-      let size = list.length / Number(config.rounds);
-      let repeat = function(){
-        if (round >= (Number(config.rounds) || 1) ){
-          callback(iterations);
-        } else {
-          iterate(list.slice(size * round, (size+1) * round), repeat, round);
-          round++;
-        }
-      }
-    } else {
-      let round = 0;
-      let repeat = function(){
-        if (round >= (Number(config.rounds) || 1) ){
-          callback(iterations);
-        } else {
-          iterate(list, repeat, round);
-          round++;
-        }
-      }
-      repeat();
-    }
-
-  }
+  };
 
 })();
 
-/**
- * Asynchronous name discovery using autocomplete.
- */
-function asyncNameDiscovery(callback){
+const randomQuery = function(names, func, callback){
 
-  var names = [];
-  var begin = process.hrtime();
+  const begin = process.hrtime(); //The beginning of task time.
 
-  const getPaths = function(root, callback){
+  console.log("Debug", names);
 
+  async.mapLimit(Array.from(names), config.parallel, function(path, callback){
     const start = process.hrtime(); //Record high res time
     const startDiff = process.hrtime(begin); //Time of query relative to begin
     const startns = startDiff[0] * 1e9 + startDiff[1];
 
-    //Path corrections.
-    root = root.replace(/\/{2}/g, '/');
-    if (!root.endsWith('/')) root += '/';
+    console.log("Trying:", path);
 
-    autoComplete(root, function(next, lastElement){
+    func(path, function(results, packets, first, end){
 
-      const end = process.hrtime(start); //Time relative to start of query
-      const rtt = end[0] * 1e9 + end[1]; //RTT
-
-      if (!next){
-        names.push([startns, -1, 0, root]);
-        return callback(); //No need to continue
+      if (!results){
+        callback(null, [startns, -1, -1, results, packets, path]);
       } else {
-        names.push([startns, rtt, next.length, root]);
-      }
-
-      if (!lastElement){
-        callback(null, next.map(function(item){
-          return root + item + '/';
-        }));
-      } else {
-        callback(); //Done.
+        callback(null, [startns, first, end, results, packets, path]);
       }
 
     });
 
-  }
-
-  const query = function(err, vals){
+  }, function(err, results){
     if (err){
-      throw err;
+      return console.error(err);
     }
-
-    if (!vals){
-      throw new Error('No results found!');
-    }
-
-    //console.log('debug', vals);
-
-    var next = vals.reduce(function(prev, current){ //Vals is an array of arrays, we want to flatten this.
-      if (current){
-        return prev.concat(current);
-      } else {
-        return prev;
-      }
-    }, []);
-
-    if (next.length > 0){
-      let parallel = Number(config.max_parallel_autocomplete || 100);
-      if (parallel <= 0){
-        async.map(next, getPaths, query); //Run getPaths on every value in next, when done run this function.
-      } else {
-        async.mapLimit(next, parallel, getPaths, query); //Same as above except limited to some number of queries.
-      }
-    } else {
-      callback(names);
-    }
-
-  }
-
-  getPaths('/', function(err, next){
-    query(err, [next]); //Fix default return since we didn't use map.
-  });
-
+    callback(results);
+  });	
 
 }
+
 
 function main(pipeline){
 
@@ -268,21 +233,64 @@ function main(pipeline){
     }
   });
 
-  console.log("Stage 1: Branching name discovery");
+  async.waterfall([
+    function(callback){
 
-  var data = {};
-  asyncNameDiscovery(function(names){
-    data.names = names;
-    console.log("Stage 2: Random Path Query");
-    randomPathQuery(names.map(function(element){
-        return element[3];
-      }), function(paths){
+      console.log("Retrieving names from file.");
 
-      data.paths = paths;
+      var buffers = [];
 
-      handleResults(data);
+      fs.createReadStream('../names.gz').pipe(zlib.createGunzip())
+        .on('data', function(buffer){
+          buffers.push(buffer);
+        }).on('end', function(){
+          var buffer = Buffer.concat(buffers);
 
-    });
+          var data = buffer.toString('ascii');
+          var names = data.split(/\n/);
+          if (names.length === 0) return callback("Not enough names!");
+          callback(null, names);
+        });
+
+    },
+    function(names, callback){
+
+      async.series([
+        function(callback){
+          console.log("Stage 1: Branching name discovery");
+
+          randomQuery(
+              getRandomLengthNames(names, config.autoCompleteSize),
+              autoComplete,
+              function(results){
+                callback(null, results);
+              }
+            );
+        },
+        function(callback){
+
+          console.log("Stage 2: Random Path Query");
+
+          randomQuery(
+              getRandomLengthNames(names, config.pathCompleteSize),
+              pathQuery,
+              function(results){
+                callback(null, results);
+              }
+            );
+        }], function(err, results){
+          if (err){
+            return console.error(err);
+          }
+          callback(null, results);
+        });
+
+    }
+  ], function (err, results){
+    if (err){
+      return console.error(err);
+    }
+    handleResults(results);
   });
 
 };
@@ -306,7 +314,7 @@ function handleResults(results){
   };
 
   fs.writeFile(
-      process.env.npm_package_config_log || 'output.log', //filename
+      config.log || 'output.json', //filename
       JSON.stringify(log, null, config.pretty_space || null), //data
       {encoding: 'ascii'}, //options
       function(err){ //callback
@@ -319,8 +327,7 @@ function handleResults(results){
   );
 }
 
-
-if (require.main === module) {
+if (require.main === module){
   main();
 }
 

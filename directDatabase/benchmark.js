@@ -7,7 +7,6 @@ const mysql = require('mysql');
 const zlib = require('zlib');
 const fs = require('fs');
 const async = require('async');
-const process = require('process');
 
 //Globals
 const pool = mysql.createPool(config.mysql);

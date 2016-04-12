@@ -1,12 +1,15 @@
 {
-  "timeout": 7000,
+  "timeout": 10000,
   "prefix": "/catalog",
   "address": "atmos-den.es.net",
   "port": 6363,
-  "rounds": 15,
-  "max_parallel_requests": 10,
-  "max_parallel_autocomplete": 300,
+  "parallel": 15,
   "log": "output.json",
-  "pretty_space": "",
-  "split_data": true
+  "autoCompleteSize": 500,
+  "pathCompleteSize": 1000,
+  "fullPathQuery": false,
+  "components": {
+    "min": 1,
+    "max": 9
+  }
 }
