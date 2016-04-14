@@ -98,7 +98,7 @@ const autoComplete = (function(){
         next = next.concat(content.next);
         
         if (piece === 1){
-          first = process.hrtime(first); //First packet is back.
+          first = process.hrtime(begin); //First packet is back.
         }
         
         if (content.resultCount !== content.viewEnd){
@@ -194,9 +194,9 @@ const randomQuery = function(names, func, callback){
     func(path, function(results, packets, first, end){
 
       if (!results){
-        callback(null, [startns, -1, -1, results, packets, path]);
+        callback(null, [startns, -1, -1, 0, 0, path]);
       } else {
-        callback(null, [startns, first, end, results, packets, path]);
+        callback(null, [startns, first, end, results.length, packets, path]);
       }
 
     });
