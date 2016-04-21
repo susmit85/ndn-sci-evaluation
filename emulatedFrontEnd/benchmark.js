@@ -37,7 +37,7 @@ function getLengthVariation(name, length){
     return match[0];
 }
 
-function getRandomLengthNames(names, quantity){
+function getRandomLengthNames(names, quantity, config){
 
     var list = new Set();
 
@@ -78,7 +78,7 @@ const autoComplete = (function(){
 
   const prefix = new ndn.Name((config.prefix || '/cmip5') + '/query');
 
-  return function(path, callback){
+  return function(path, config, callback){
 
     const name = new ndn.Name(prefix);
 
@@ -131,7 +131,7 @@ const pathQuery = (function(){
 
   const prefix = new ndn.Name((config.prefix || '/cmip5') + '/query');
 
-  return function(path, callback){
+  return function(path, config, callback){
 
     const name = new ndn.Name(prefix);
 
@@ -178,20 +178,16 @@ const pathQuery = (function(){
 
 })();
 
-const randomQuery = function(names, func, callback){
+const randomQuery = function(names, func, config, callback, progress){
 
   const begin = process.hrtime(); //The beginning of task time.
-
-  console.log("Debug", names);
 
   async.mapLimit(Array.from(names), config.parallel, function(path, callback){
     const start = process.hrtime(); //Record high res time
     const startDiff = process.hrtime(begin); //Time of query relative to begin
     const startns = startDiff[0] * 1e9 + startDiff[1];
 
-    console.log("Trying:", path);
-
-    func(path, function(results, packets, first, end){
+    func(path, config, function(results, packets, first, end){
 
       if (!results){
         callback(null, [startns, -1, -1, 0, 0, path]);
@@ -255,76 +251,108 @@ function main(pipeline){
     },
     function(names, callback){
 
-      async.series([
-        function(callback){
-          console.log("Stage 1: Branching name discovery");
+      const roundCount = config.rounds.length;
 
-          randomQuery(
-              getRandomLengthNames(names, config.autoCompleteSize),
-              autoComplete,
-              function(results){
-                callback(null, results);
-              }
-            );
-        },
-        function(callback){
+      console.log("Running...");
 
-          console.log("Stage 2: Random Path Query");
+      async.forEachOfSeries(config.rounds, function(roundConfig, round, callback){
 
-          randomQuery(
-              getRandomLengthNames(names, config.pathCompleteSize),
-              pathQuery,
-              function(results){
-                callback(null, results);
-              }
-            );
-        }], function(err, results){
-          if (err){
-            return console.error(err);
-          }
-          callback(null, results);
+        const conf = Object.assign({}, config.defaults, roundConfig);
+
+        async.timesSeries(roundConfig.repeat || 1, function(n, next){
+
+          console.log("Round: " + (round+1) + "/" + roundCount + "  Cycle: " + (n+1) + "/" + roundConfig.repeat);
+
+          async.series([
+              function(callback){
+
+                randomQuery(
+                    getRandomLengthNames(names, conf.autoCompleteSize, conf),
+                    autoComplete,
+                    conf,
+                    function(results){
+                      callback(null, results);
+                    }
+                    );
+              },
+              function(callback){
+
+                randomQuery(
+                    getRandomLengthNames(names, conf.pathCompleteSize, conf),
+                    pathQuery,
+                    conf,
+                    function(results){
+                      callback(null, results);
+                    }
+                    );
+              }], function(err, results){
+                if (err){
+                  return console.error(err);
+                }
+                next(null, results);
+              });
+        }, function(err, results){
+          handleResults(results, (conf.log || "output") + (round + 1), conf);
+          callback(err);
         });
+      
+      }, callback);
 
     }
   ], function (err, results){
+    face.close();
     if (err){
       return console.error(err);
     }
-    handleResults(results);
   });
 
 };
 
-function handleResults(results){
+function handleResults(results, name, config){
 
-  face.close();
+  console.log(results);
 
-  console.log("Complete: Writing to log file");
+  //Print autocomplete results.
+  var csv = "iteration,startTime(ns),firstpacket rtt(ns),time till last packet (ns),results,packets,name\n";
 
-  var log = {
-    details: {
-      arch: os.arch(),
-      cpus: os.cpus(),
-      platform: os.platform(),
-      release: os.release(),
-      load: os.loadavg(),
-      type: os.type()
-    },
-    data: results
-  };
+  //Results kept getting wrapped in an array, unwrap and convert to csv.
+  results[0].forEach(function(iteration, count){
+    iteration.forEach(function(result){
+      csv += (count + 1) + ',' + result.join(',') + "\n";
+    });
+  });
 
   fs.writeFile(
-      config.log || 'output.json', //filename
-      JSON.stringify(log, null, config.pretty_space || null), //data
-      {encoding: 'ascii'}, //options
+      name + "_ac.csv", //filename
+      csv, //data
+      {encoding: 'utf8'}, //options
       function(err){ //callback
         if (err){
-          console.error(err);
-        } else {
-          console.log("Done!");
+          return console.error(err);
         }
-      }
-  );
+        console.log("Printed to " + name + "_ac.csv");
+      });
+
+  //Print pathcomplete results.
+  csv = "iteration,startTime(ns),firstpacket rtt(ns),time till last packet (ns),results,packets,name\n";
+
+  results[1].forEach(function(iteration, count){
+    iteration.forEach(function(result){
+      csv += (count + 1) + ',' + result.join(',') + "\n";
+    });
+  });
+
+  fs.writeFile(
+      name + "_pq.csv", //filename
+      csv,
+      {encoding: 'utf8'},
+      function(err){
+        if (err){
+          return console.error(err);
+        }
+        console.log("Printed to " + name + "_pq.csv");
+      });
+
 }
 
 if (require.main === module){

@@ -3,13 +3,27 @@
   "prefix": "/catalog",
   "address": "atmos-den.es.net",
   "port": 6363,
-  "parallel": 15,
-  "log": "output.json",
-  "autoCompleteSize": 500,
-  "pathCompleteSize": 1000,
-  "fullPathQuery": false,
-  "components": {
-    "min": 1,
-    "max": 9
-  }
+  "defaults": {
+    "parallel": 15,
+    "log": "output",
+    "autoCompleteSize": 500,
+    "pathCompleteSize": 1000,
+    "fullPathQuery": false,
+    "components": {
+      "min": 1,
+      "max": 9
+    }
+  },
+  "rounds": [
+    {
+      "autoCompleteSize": 500,
+      "pathCompleteSize": 500,
+      "repeat": 2
+    },
+    {
+      "autoCompleteSize": 1000,
+      "pathCompleteSize": 1000,
+      "repeat": 2
+    }
+  ]
 }
