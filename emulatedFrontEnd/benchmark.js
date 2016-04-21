@@ -310,8 +310,6 @@ function main(pipeline){
 
 function handleResults(results, name, config){
 
-  console.log(results);
-
   //Print autocomplete results.
   var csv = "iteration,startTime(ns),firstpacket rtt(ns),time till last packet (ns),results,packets,name\n";
 
