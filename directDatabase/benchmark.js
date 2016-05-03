@@ -26,7 +26,7 @@ function getLengthVariation(name, length){
   return match[0];
 }
 
-function getRandomLengthNames(names, quantity){
+function getRandomLengthNames(names, quantity, config){
 
   var list = new Set();
 
@@ -48,99 +48,20 @@ function getRandomLengthNames(names, quantity){
 
   }
 
-  return list;
+  return Array.from(list);
 
 }
 
-new Promise(function(resolve, reject){
+function autoComplete(names, config, round, callback){
+  //Autocomplete queries
+  const list = getRandomLengthNames(names, config.autoCompleteSize, config);
 
-  var buffers = [];
+  console.log(names.length, list.length, config, round);
 
-  fs.createReadStream('../names.gz').pipe(zlib.createGunzip())
-    .on('data', function(buffer){
-      buffers.push(buffer);
-    }).on('end', function(){
-      var buffer = Buffer.concat(buffers);
-
-      var data = buffer.toString('ascii');
-      var names = data.split(/\n/);
-      resolve(names);
-    });
-
-}).then(function(names){
-
-  //Tests
-  var list;
-
-  //Path queries
-  list = getRandomLengthNames(names, config.pathCompleteSize);
-  
-  const q = 'SELECT `name` FROM testdb.' + config.table + ' WHERE';
+  const q = 'SELECT DISTINCT $val FROM testdb.' + config.table + ' WHERE';
   const slash = /^\/|\/$/g;
 
-  console.log("Starting path queries");
-
-  async.mapLimit(list, config.parallel, function(item, callback){
-
-    console.log("Running on:", item);
-
-    var w = '';
-
-    var components = item.replace(slash, '').split(/\//);
-    components.forEach(function(value, index){
-      if (index > 0) w += ' AND';
-      w += ' `' + schema[index] + "` = '" + value + "'";
-    });
-
-    pool.getConnection(function(err, connection){
-
-      if (err){
-        console.error(err);
-        return;
-      }
-
-      const qbegin = process.hrtime();
-      var first;
-      var count = 0;
-
-      connection.query(q + w)
-        .on('error', function(err){
-          console.error(err);
-          connection.release();
-        }).on('fields', function(fields){
-          first = process.hrtime(qbegin);
-          //console.log(fields);
-        }).on('result', function(row){
-          count++;
-        }).on('end', function(){
-          connection.release();
-          var time = process.hrtime(qbegin);
-          callback(null, [item, count, first[0] * 1e9 + first[1], time[0] * 1e9 + time[1]]);
-        });
-
-    });
-
-  }, function(err, results){
-
-    console.log("Finished with all path queries");
-
-    const csv = results.reduce(function(previous, next){
-      return previous + next.join(',') + "\n";
-    }, "Path query,results,database time,network time\n");
-
-    fs.writeFile('pathComplete.csv', csv, function(err){
-      if (err){
-        return console.error(err);
-      }
-
-      console.log("Wrote results to pathComplete.csv");
-    });
-
-    //Autocomplete queries
-    list = getRandomLengthNames(names, config.autoCompleteSize);
-    
-    const q = 'SELECT DISTINCT $val FROM testdb.' + config.table + ' WHERE';
-
+  async.timesSeries(config.repeat || 1, function(n, next){
     async.mapLimit(list, config.parallel, function(item, callback){
 
       console.log("Running on:", item);
@@ -180,33 +101,149 @@ new Promise(function(resolve, reject){
       });
 
     }, function(err, results){
+      next(null, results);
+    });
+  }, function(err, results){
 
-      console.log("Finished with all auto complete queries.");
-
-      const csv = results.reduce(function(prev, next){
-        return prev + next.join(',') + "\n";
+    var csv = '';
+    results.forEach(function(iteration, n){
+      csv += iteration.reduce(function(prev, next){
+        return prev + n + ',' + next.join(',') + "\n";
       }, "name,results,database time,network time\n");
-
-      fs.writeFile('autoComplete.csv', csv, function(err){
-        if (err){
-          return console.error(err);
-        }
-        console.log("Wrote results to autoComplete.csv");
-      });
-
-      pool.end(function(err){
-        if (err){
-          return console.error(err);
-        }
-        console.log("Done!");
-      });
-
     });
 
+    fs.writeFile('autoComplete_'+round+'.csv', csv, function(err){
+      if (err){
+        return console.error(err);
+      }
+      console.log("Wrote results to autoComplete_"+round+".csv");
+    });
+    callback();
+
+  });
+}
+
+function pathQuery(names, config, round, callback){
+  //Path queries
+  const list = getRandomLengthNames(names, config.pathCompleteSize, config);
+
+  const q = 'SELECT `name` FROM testdb.' + config.table + ' WHERE';
+  const slash = /^\/|\/$/g;
+
+  console.log("Starting path queries");
+
+  async.timesSeries(config.repeat || 1, function(n, next){
+    async.mapLimit(list, config.parallel, function(item, callback){
+
+      console.log("Running on:", item);
+
+      var w = '';
+
+      var components = item.replace(slash, '').split(/\//);
+      components.forEach(function(value, index){
+        if (index > 0) w += ' AND';
+        w += ' `' + schema[index] + "` = '" + value + "'";
+      });
+
+      pool.getConnection(function(err, connection){
+
+        if (err){
+          console.error(err);
+          return;
+        }
+
+        const qbegin = process.hrtime();
+        var first;
+        var count = 0;
+
+        connection.query(q + w)
+          .on('error', function(err){
+            console.error(err);
+            connection.release();
+          }).on('fields', function(fields){
+            first = process.hrtime(qbegin);
+            //console.log(fields);
+          }).on('result', function(row){
+            count++;
+          }).on('end', function(){
+            connection.release();
+            var time = process.hrtime(qbegin);
+            callback(null, [item, count, first[0] * 1e9 + first[1], time[0] * 1e9 + time[1]]);
+          });
+
+      });
+
+    }, function(err, results){
+
+      next(null, results);
+
+    });
+  }, function(err, results){
+    var csv = '';
+    results.forEach(function(iteration, n){
+      csv += iteration.reduce(function(previous, next){
+        return previous + n + ',' + next.join(',') + "\n";
+      }, "Iteration,Path query,results,database time,network time\n");
+    });
+
+    fs.writeFile('pathComplete_' + round + '.csv', csv, function(err){
+      if (err){
+        return console.error(err);
+      }
+
+      console.log("Wrote results to pathComplete_" + round + ".csv");
+    });
+
+    callback();
   });
 
+}
 
-}).catch(function(e){
-  console.error(e);
+async.waterfall([
+    function(callback){
+      var buffers = [];
+
+      fs.createReadStream('../names.gz').pipe(zlib.createGunzip())
+        .on('data', function(buffer){
+          buffers.push(buffer);
+        }).on('end', function(){
+          var buffer = Buffer.concat(buffers);
+
+          var data = buffer.toString('ascii');
+          var names = data.split(/\n/);
+          callback(null, names);
+        });
+
+    },
+    function(names, callback){
+
+      //Tests
+      async.forEachOfSeries(config.rounds, function(roundConfig, round, callback){
+
+        const conf = Object.assign({}, config.defaults, roundConfig);
+
+        console.log("Round: " + (round+1) + "/" + config.rounds.length);
+
+        async.series([function(callback){
+          autoComplete(names, conf, round, callback);
+        }, function(callback){
+           pathQuery(names, conf, round, callback);
+        }], callback);
+
+      }, callback);
+
+
+    }
+], function(err, results){
+  if (err){
+    console.error(err);
+  }
+
+  pool.end(function(err){
+    if (err){
+      return console.error(err);
+    }
+    console.log("Done!");
+  });
 });
 
