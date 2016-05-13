@@ -313,45 +313,42 @@ function main(pipeline){
 function handleResults(results, name, config){
 
   //Print autocomplete results.
-  var csv = "iteration,startTime(ns),firstpacket rtt(ns),time till last packet (ns),results,packets,name\n";
-
   //Results kept getting wrapped in an array, unwrap and convert to csv.
-  results[0].forEach(function(iteration, count){
-    iteration.forEach(function(result){
+  results.forEach(function(repeat, count){
+    var csv = "iteration,startTime(ns),firstpacket rtt(ns),time till last packet (ns),results,packets,name\n";
+
+    repeat[0].forEach(function(result){
       csv += (count + 1) + ',' + result.join(',') + "\n";
     });
-  });
 
-  fs.writeFile(
-      name + "_ac.csv", //filename
-      csv, //data
-      {encoding: 'utf8'}, //options
-      function(err){ //callback
-        if (err){
-          return console.error(err);
-        }
-        console.log("Printed to " + name + "_ac.csv");
-      });
+    fs.writeFile(
+        name + "_ac.csv", //filename
+        csv, //data
+        {encoding: 'utf8'}, //options
+        function(err){ //callback
+          if (err){
+            return console.error(err);
+          }
+          console.log("Printed to " + name + "_ac.csv");
+        });
 
-  //Print pathcomplete results.
-  csv = "iteration,startTime(ns),firstpacket rtt(ns),time till last packet (ns),results,packets,name\n";
+    csv = "iteration,startTime(ns),firstpacket rtt(ns),time till last packet (ns),results,packets,name\n";
 
-  results[1].forEach(function(iteration, count){
-    iteration.forEach(function(result){
+    repeat[1].forEach(function(result){
       csv += (count + 1) + ',' + result.join(',') + "\n";
     });
-  });
 
-  fs.writeFile(
-      name + "_pq.csv", //filename
-      csv,
-      {encoding: 'utf8'},
-      function(err){
-        if (err){
-          return console.error(err);
-        }
-        console.log("Printed to " + name + "_pq.csv");
-      });
+    fs.writeFile(
+        name + "_pq.csv", //filename
+        csv,
+        {encoding: 'utf8'},
+        function(err){
+          if (err){
+            return console.error(err);
+          }
+          console.log("Printed to " + name + "_pq.csv");
+        });
+  });
 
 }
 
