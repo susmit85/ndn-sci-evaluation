@@ -109,7 +109,7 @@ function autoComplete(names, config, round, callback){
     results.forEach(function(iteration, n){
       csv += iteration.reduce(function(prev, next){
         return prev + n + ',' + next.join(',') + "\n";
-      }, "name,results,database time,network time\n");
+      }, "iteration,name,results,database time,network time\n");
     });
 
     fs.writeFile('autoComplete_'+round+'.csv', csv, function(err){

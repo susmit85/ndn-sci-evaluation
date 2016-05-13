@@ -259,9 +259,11 @@ function main(pipeline){
 
         const conf = Object.assign({}, config.defaults, roundConfig);
 
-        async.timesSeries(roundConfig.repeat || 1, function(n, next){
+        console.log(conf);
 
-          console.log("Round: " + (round+1) + "/" + roundCount + "  Cycle: " + (n+1) + "/" + roundConfig.repeat);
+        async.timesSeries(conf.repeat || 1, function(n, next){
+
+          console.log("Round: " + (round+1) + "/" + roundCount + "  Cycle: " + (n+1) + "/" + conf.repeat);
 
           async.series([
               function(callback){
