@@ -1,0 +1,8 @@
+{
+  "name": "ndn-name-generator",
+  "version": "0.0.1",
+  "description": "This randomly selects a number names from a list and puts them in a json output.",
+  "dependencies": {
+    "async": "^2.0.0-rc.2"
+  }
+}
