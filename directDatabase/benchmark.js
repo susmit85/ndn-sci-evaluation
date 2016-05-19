@@ -13,56 +13,44 @@ const pool = mysql.createPool(config.mysql);
 const schema = ['activity', 'product', 'organization', 'model', 'experiment', 'frequency',
     'modeling_realm', 'variable_name', 'ensemble', 'time'];
 
-function getRandom(min, max){
-  return Math.floor(Math.random() * (max - min)) + min;
-}
-
 /**
- * This function gets a random length of components.
+ * This function shortens ndn names by one component at a time.
  */
-function getLengthVariation(name, length){
-  var regex = new RegExp("(^\\/(?:[\\w\\-]+\\/){" + length + "})");
-  var match = regex.exec(name);
-  return match[0];
-}
-
-function getRandomLengthNames(names, quantity, config){
-
-  var list = new Set();
-
-  while (list.size < quantity){
-
-    var name = names[getRandom(0, names.length - 1)];
-    var variations = [];
-
-    for (let i = config.components.min; i < config.components.max; ++i){
-      let variation = getLengthVariation(name, i);
-      if (!list.has(variation)){
-        variations.push(variation);
-      }
-    }
-
-    if (variations.length > 0){
-      list.add(variations[getRandom(0, variations.length - 1)]);
-    }
-
+const shortenName = (function(){
+  const regex = /[\w\d-]+\/$/gm;
+  return function(name){
+    return name.replace(regex,'');
   }
+})();
 
-  return Array.from(list);
+function shortenNames(names){
+
+  var ret = new Set();
+
+  names.map(function(name){
+    var s = shortenName(name);
+    if (!ret.has(s)){
+      ret.add(s);
+    }
+  });
+
+  return Array.from(ret);
 
 }
 
-function autoComplete(names, config, round, callback){
+function autoComplete(names, config, callback){
   //Autocomplete queries
-  const list = getRandomLengthNames(names, config.autoCompleteSize, config);
 
-  console.log(names.length, list.length, config, round);
+  console.log(names.length, config, callback);
 
   const q = 'SELECT DISTINCT $val FROM testdb.' + config.table + ' WHERE';
   const slash = /^\/|\/$/g;
 
   async.timesSeries(config.repeat || 1, function(n, next){
-    async.mapLimit(list, config.parallel, function(item, callback){
+
+    names = shortenNames(names);
+
+    async.mapLimit(names, config.parallel, function(item, callback){
 
       console.log("Running on:", item);
 
@@ -75,6 +63,10 @@ function autoComplete(names, config, round, callback){
       });
 
       pool.getConnection(function(err, connection){
+
+        if (err){
+          return console.error(err);
+        }
 
         const qbegin = process.hrtime();
         var first;
@@ -101,31 +93,14 @@ function autoComplete(names, config, round, callback){
       });
 
     }, function(err, results){
+      console.log("Finished an iteration...");
       next(null, results);
     });
-  }, function(err, results){
-
-    var csv = '';
-    results.forEach(function(iteration, n){
-      csv += iteration.reduce(function(prev, next){
-        return prev + n + ',' + next.join(',') + "\n";
-      }, "iteration,name,results,database time,network time\n");
-    });
-
-    fs.writeFile('autoComplete_'+round+'.csv', csv, function(err){
-      if (err){
-        return console.error(err);
-      }
-      console.log("Wrote results to autoComplete_"+round+".csv");
-    });
-    callback();
-
-  });
+  }, callback);
 }
 
-function pathQuery(names, config, round, callback){
+function pathQuery(names, config, callback){
   //Path queries
-  const list = getRandomLengthNames(names, config.pathCompleteSize, config);
 
   const q = 'SELECT `name` FROM testdb.' + config.table + ' WHERE';
   const slash = /^\/|\/$/g;
@@ -133,7 +108,10 @@ function pathQuery(names, config, round, callback){
   console.log("Starting path queries");
 
   async.timesSeries(config.repeat || 1, function(n, next){
-    async.mapLimit(list, config.parallel, function(item, callback){
+
+    names = shortenNames(names);
+
+    async.mapLimit(names, config.parallel, function(item, callback){
 
       console.log("Running on:", item);
 
@@ -174,28 +152,10 @@ function pathQuery(names, config, round, callback){
       });
 
     }, function(err, results){
-
+      console.log("Finished an iteration...");
       next(null, results);
-
     });
-  }, function(err, results){
-    var csv = '';
-    results.forEach(function(iteration, n){
-      csv += iteration.reduce(function(previous, next){
-        return previous + n + ',' + next.join(',') + "\n";
-      }, "Iteration,Path query,results,database time,network time\n");
-    });
-
-    fs.writeFile('pathComplete_' + round + '.csv', csv, function(err){
-      if (err){
-        return console.error(err);
-      }
-
-      console.log("Wrote results to pathComplete_" + round + ".csv");
-    });
-
-    callback();
-  });
+  }, callback);
 
 }
 
@@ -203,19 +163,14 @@ async.waterfall([
     function(callback){
       var buffers = [];
 
-      fs.createReadStream('../names.gz').pipe(zlib.createGunzip())
-        .on('data', function(buffer){
-          buffers.push(buffer);
-        }).on('end', function(){
-          var buffer = Buffer.concat(buffers);
-
-          var data = buffer.toString('ascii');
-          var names = data.split(/\n/);
-          callback(null, names);
-        });
+      fs.readFile('../names.json',{encoding:'utf8'}, function(err, data){
+        callback(null, JSON.parse(data));
+      });
 
     },
     function(names, callback){
+
+      var roundResults = [];
 
       //Tests
       async.forEachOfSeries(config.rounds, function(roundConfig, round, callback){
@@ -225,19 +180,23 @@ async.waterfall([
         console.log("Round: " + (round+1) + "/" + config.rounds.length);
 
         async.series([function(callback){
-          autoComplete(names, conf, round, callback);
+          autoComplete(names, conf, callback);
         }, function(callback){
-           pathQuery(names, conf, round, callback);
-        }], callback);
+          pathQuery(names, conf, callback);
+        }], function(err, results){
+          console.log("Finished a round...");
+          roundResults.push(results);
+          callback(err);
+        });
 
-      }, callback);
+      }, function(err){
+        console.log("Finished all rounds...");
+        callback(err, roundResults);
+      });
 
 
     }
 ], function(err, results){
-  if (err){
-    console.error(err);
-  }
 
   pool.end(function(err){
     if (err){
@@ -245,5 +204,36 @@ async.waterfall([
     }
     console.log("Done!");
   });
+
+  if (err){
+    return console.error(err);
+  }
+
+  var csv = "Round,Action,Name Length,Name,Results,Database time,Network Time\n";
+
+  results.forEach(function(data, round){
+
+    data.forEach(function(test, index){
+
+      var t = index === 0 ? 'AutoComplete' : 'PathQuery';
+
+      test.forEach(function(row, count){
+
+        row.forEach(function(value){
+          csv += (round + 1) + ',' + t + ',' + (9 - count) + ',' + value.join(',') + '\n';
+        });
+
+      });
+
+    });
+
+  });
+
+  fs.writeFile('output.csv', csv, function(err){
+    if (err){
+      console.error(err);
+    }
+  });
+
 });
 
