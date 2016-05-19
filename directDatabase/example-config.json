@@ -8,22 +8,12 @@
   },
   "defaults": {
     "table": "cmip5_all_no_metadata",
-    "autoCompleteSize": 200,
-    "pathCompleteSize": 200,
     "parallel": 15,
-    "components": {
-      "min": 1,
-      "max": 9
-    }
+    "rounds": 9
   },
   "rounds": [
     {
-      "autoCompleteSize": 100,
-      "pathCompleteSize": 100
-    },
-    {
-      "autoCompleteSize": 1000,
-      "pathCompleteSize": 1000
+      "rounds": 9
     }
   ]
 }
