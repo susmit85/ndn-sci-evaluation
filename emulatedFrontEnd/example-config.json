@@ -4,25 +4,11 @@
   "address": "atmos-den.es.net",
   "port": 6363,
   "defaults": {
-    "parallel": 15,
-    "log": "output",
-    "autoCompleteSize": 500,
-    "pathCompleteSize": 1000,
-    "fullPathQuery": false,
-    "components": {
-      "min": 1,
-      "max": 9
-    }
+    "parallel": 1,
+    "repeat": 3
   },
   "rounds": [
     {
-      "autoCompleteSize": 500,
-      "pathCompleteSize": 500,
-      "repeat": 2
-    },
-    {
-      "autoCompleteSize": 1000,
-      "pathCompleteSize": 1000,
       "repeat": 2
     }
   ]

@@ -24,42 +24,28 @@ const async = require('async');
 const zlib = require('zlib');
 const config = require('./config.json');
 
-function getRandom(min, max){
-    return Math.floor(Math.random() * (max - min)) + min;
-}
-
 /**
- * This function gets a random length of components.
+ * This function shortens an ndn name by one component at a time.
  */
-function getLengthVariation(name, length){
-    var regex = new RegExp("(^\\/(?:[\\w\\-]+\\/){" + length + "})");
-    var match = regex.exec(name);
-    return match[0];
-}
+const shortenName = (function(){
+  const regex = /[\w\d-]+\/$/gm;
+  return function(name){
+    return name.replace(regex, '');
+  }
+})();
 
-function getRandomLengthNames(names, quantity, config){
+function shortenNames(names){
 
-    var list = new Set();
+  var list = new Set();
 
-    while (list.size < quantity){
-
-        var name = names[getRandom(0, names.length - 1)];
-        var variations = [];
-
-        for (let i = config.components.min; i < config.components.max; ++i){
-            let variation = getLengthVariation(name, i);
-            if (!list.has(variation)){
-                variations.push(variation);
-            }
-        }
-
-        if (variations.length > 0){
-            list.add(variations[getRandom(0, variations.length - 1)]);
-        }
-
+  names.map(function(name){
+    var s = shortenName(name);
+    if (!list.has(s)){
+      list.add(s);
     }
+  });
 
-    return list;
+  return Array.from(list);
 
 }
 
@@ -96,11 +82,11 @@ const autoComplete = (function(){
       request(name, function(interest, data){
         var content = JSON.parse(data.getContent().toString().replace(/[\n\0]/g, ''));
         next = next.concat(content.next);
-        
+
         if (piece === 1){
           first = process.hrtime(begin); //First packet is back.
         }
-        
+
         if (content.resultCount !== content.viewEnd){
           let n2 = data.getName().getPrefix(-1);
           n2.appendSegment(piece++);
@@ -149,11 +135,11 @@ const pathQuery = (function(){
       request(name, function(interest, data){
         var content = JSON.parse(data.getContent().toString().replace(/[\n\0]/g, ''));
         results = results.concat(content.results);
-        
+
         if (piece === 1){
           first = process.hrtime(begin);
         }
-        
+
         if (content.resultCount !== content.viewEnd && config.fullPathQuery === true){
           let n2 = data.getName().getPrefix(-1);
           n2.appendSegment(piece++);
@@ -182,10 +168,12 @@ const randomQuery = function(names, func, config, callback, progress){
 
   const begin = process.hrtime(); //The beginning of task time.
 
-  async.mapLimit(Array.from(names), config.parallel, function(path, callback){
+  async.mapLimit(names, config.parallel, function(path, callback){
     const start = process.hrtime(); //Record high res time
     const startDiff = process.hrtime(begin); //Time of query relative to begin
     const startns = startDiff[0] * 1e9 + startDiff[1];
+
+    console.log("Running on", path);
 
     func(path, config, function(results, packets, first, end){
 
@@ -207,53 +195,43 @@ const randomQuery = function(names, func, config, callback, progress){
 }
 
 
-function main(pipeline){
+console.log("Setting up");
 
-  console.log("Setting up");
+face = new ndn.Face({
+  host: config.address|| "atmos-den.es.net",
+  port: Number(config.port) || 6363,
+  onopen: function(){
+    console.log("Connection open.");
+  },
+  onclose: function(){
+    console.log("Connection closed!");
+  }
+});
 
-  var timeout = setTimeout(function(){
-    console.error("Face never connected.");
-    face.close();
-    process.exit(1);
-  }, 10000);
+setTimeout(function(){
+  if (face.readyStatus !== ndn.Face.OPENED){
+    console.log("Connection didn't open within 5 seconds.", face.readyStatus);
+  }
+}, 5000);
 
-  face = new ndn.Face({
-    host: config.address|| "atmos-den.es.net",
-    port: Number(config.port) || 6363,
-    onopen: function(){
-      console.log("Connection open.");
-      clearTimeout(timeout);
-    },
-    onclose: function(){
-      console.log("Connection closed!");
-    }
-  });
 
-  async.waterfall([
+async.waterfall([
     function(callback){
 
       console.log("Retrieving names from file.");
 
-      var buffers = [];
-
-      fs.createReadStream('../names.gz').pipe(zlib.createGunzip())
-        .on('data', function(buffer){
-          buffers.push(buffer);
-        }).on('end', function(){
-          var buffer = Buffer.concat(buffers);
-
-          var data = buffer.toString('ascii');
-          var names = data.split(/\n/);
-          if (names.length === 0) return callback("Not enough names!");
-          callback(null, names);
-        });
+      fs.readFile('../names.json', {encoding:'ascii'}, function(err, data){
+        callback(null, JSON.parse(data));
+      });
 
     },
-    function(names, callback){
+    function(list, callback){
 
       const roundCount = config.rounds.length;
 
       console.log("Running...");
+
+      var roundResults = [];
 
       async.forEachOfSeries(config.rounds, function(roundConfig, round, callback){
 
@@ -261,7 +239,11 @@ function main(pipeline){
 
         console.log(conf);
 
+        var names = list;
+
         async.timesSeries(conf.repeat || 1, function(n, next){
+
+          names = shortenNames(names);
 
           console.log("Round: " + (round+1) + "/" + roundCount + "  Cycle: " + (n+1) + "/" + conf.repeat);
 
@@ -269,7 +251,7 @@ function main(pipeline){
               function(callback){
 
                 randomQuery(
-                    getRandomLengthNames(names, conf.autoCompleteSize, conf),
+                    names,
                     autoComplete,
                     conf,
                     function(results){
@@ -280,7 +262,7 @@ function main(pipeline){
               function(callback){
 
                 randomQuery(
-                    getRandomLengthNames(names, conf.pathCompleteSize, conf),
+                    names,
                     pathQuery,
                     conf,
                     function(results){
@@ -294,21 +276,54 @@ function main(pipeline){
                 next(null, results);
               });
         }, function(err, results){
-          handleResults(results, (conf.log || "output") + (round + 1), conf);
+          roundResults.push(results);
           callback(err);
         });
-      
-      }, callback);
+
+      }, function(err){
+        callback(err, roundResults);
+      });
 
     }
-  ], function (err, results){
-    face.close();
+], function (err, results){
+  face.close();
+  if (err){
+    return console.error(err);
+  }
+
+  console.log(results.length);
+  console.log(results[0].length);
+  console.log(results[0][0].length);
+
+  var csv = "Round,Action,Name Length,StartTime(ns),FirstPacket Rtt(ns),Time till final packet(ns),results,packets,name\n";
+
+  results.forEach(function(data, round){
+
+    data.forEach(function(repeat, count){
+
+      repeat.forEach(function(test, index){
+
+        var t = index === 0?'AutoComplete' : 'PathQuery';
+
+        test.forEach(function(data){
+
+          csv += (round + 1) + ',' + t + ',' + (9 - count) + ',' + data.join(',') + "\n";
+
+        });
+
+      });
+
+    });
+
+  });
+
+  fs.writeFile('output.csv', csv, function(err){
     if (err){
-      return console.error(err);
+      console.error("Failed to write output file", err);
     }
   });
 
-};
+});
 
 function handleResults(results, name, config){
 
@@ -350,9 +365,5 @@ function handleResults(results, name, config){
         });
   });
 
-}
-
-if (require.main === module){
-  main();
 }
 

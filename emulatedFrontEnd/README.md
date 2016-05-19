@@ -19,10 +19,7 @@ Config Options
 
 * rounds - A list of experiments. Add any number of additional options here such as max parallel or the number of names.
 * parallel - Sets a cap on the max number of parallel queries, both path and autocomplete.
-* Log - Output file base name (don't add an extension, we will create it for you)
-* autoCompleteSize - Number of names to run autoComplete on.
-* pathCompleteSize - Number of names to run pathComplete on.
-* components - Number of components to allow in the name (min:max)
+* repeat - How many times you want to shorten the names (valid: 1-9)
 * Port - Port number of ndn server
 * Address - Address of ndn server
 * timeout - The max timeout before a name is considered missing or invalid
