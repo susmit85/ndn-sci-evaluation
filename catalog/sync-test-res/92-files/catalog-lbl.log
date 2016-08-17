@@ -1,0 +1,22 @@
+2016-08-17 13:46:04,477 ERROR [PublishAdapter] - Table 'chronosync_update_info' already exists
+2016-08-17 13:46:04,477 ERROR [PublishAdapter] - Table 'cmip5' already exists
+2016-08-17 13:46:13,467 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463173467
+2016-08-17 13:46:38,527 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463198527
+2016-08-17 13:47:03,586 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463223586
+2016-08-17 13:47:28,646 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463248646
+2016-08-17 13:47:53,705 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463273705
+2016-08-17 13:48:18,765 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463298765
+2016-08-17 13:48:43,827 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463323827
+2016-08-17 13:49:08,884 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463348884
+2016-08-17 13:49:33,946 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463373946
+2016-08-17 13:49:59,010 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463399010
+2016-08-17 13:50:24,069 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463424068
+2016-08-17 13:50:49,129 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463449129
+2016-08-17 13:51:14,189 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463474189
+2016-08-17 13:51:39,248 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463499248
+2016-08-17 13:52:04,309 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463524309
+2016-08-17 13:52:29,367 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463549367
+2016-08-17 13:52:54,429 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463574429
+2016-08-17 13:53:19,489 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463599489
+2016-08-17 13:53:44,549 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463624549
+2016-08-17 13:54:09,608 INFO  [PublishAdapter] - !!!!!Time-to-get-the-publish-Interest-in-milisecs 1471463649608

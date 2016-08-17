@@ -1,0 +1,6 @@
+{
+    "add": ["/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010002-197912311800",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010002-197912311801",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010002-197912311802",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010002-197912311803"]
+}

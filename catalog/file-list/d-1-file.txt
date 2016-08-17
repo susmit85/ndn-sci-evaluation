@@ -1,0 +1,3 @@
+{
+    "remove": ["/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010000-197912311800"]
+}

@@ -1,0 +1,22 @@
+2016-08-16 19:13:06,824 ERROR [PublishAdapter] - Table 'chronosync_update_info' already exists
+2016-08-16 19:13:06,824 ERROR [PublishAdapter] - Table 'cmip5' already exists
+2016-08-16 19:13:41,810 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389221810
+2016-08-16 19:13:56,994 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389236994
+2016-08-16 19:14:11,928 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389251928
+2016-08-16 19:14:27,107 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389267107
+2016-08-16 19:14:42,043 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389282043
+2016-08-16 19:14:57,228 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389297228
+2016-08-16 19:15:12,540 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389312540
+2016-08-16 19:15:27,653 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389327653
+2016-08-16 19:15:42,479 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389342479
+2016-08-16 19:15:57,773 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389357773
+2016-08-16 19:16:12,399 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389372399
+2016-08-16 19:16:27,585 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389387585
+2016-08-16 19:16:42,536 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389402536
+2016-08-16 19:16:57,857 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389417857
+2016-08-16 19:17:12,924 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389432924
+2016-08-16 19:17:27,816 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389447816
+2016-08-16 19:17:42,762 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389462762
+2016-08-16 19:17:57,946 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389477946
+2016-08-16 19:18:12,872 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389492872
+2016-08-16 19:18:28,518 INFO  [PublishAdapter] - !!!!!Time-to-apply-the-changes-(milisecs) 1471389508518

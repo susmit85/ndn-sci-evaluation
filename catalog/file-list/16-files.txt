@@ -1,0 +1,18 @@
+{
+    "add": ["/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311800",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311801",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311802",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311803",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311804",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311805",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311806",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311807",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311808",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311809",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311810",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311811",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311812",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311813",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311814",
+            "/cmip5/output/lbl/bcc-csm1-2/historical/6hr/atmos/psl/r1i1p1/195001010004-197912311815"]
+}
